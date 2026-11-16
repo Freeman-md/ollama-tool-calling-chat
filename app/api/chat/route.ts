@@ -2,6 +2,12 @@ import ollama, { type Tool } from "ollama";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
+const assistantInstructions = {
+  role: "system",
+  content:
+    "Be a concise, natural conversational assistant. Answer only what the user asked; do not volunteer code, examples, tool descriptions, or extra suggestions. For greetings and small talk, reply briefly and naturally. Use available tools only when needed to answer the user's actual request.",
+};
+
 const celsiusTool: Tool = {
   type: "function",
   function: {
@@ -52,8 +58,8 @@ export async function POST(request: Request) {
 
   try {
     const response = await ollama.chat({
-      model: "mistral:latest",
-      messages: body.messages,
+      model: "llama3.1:latest",
+      messages: [assistantInstructions, ...body.messages],
       tools: [celsiusTool],
       stream: false,
     });
@@ -74,8 +80,9 @@ export async function POST(request: Request) {
 
     const fahrenheit = (celsius * 9) / 5 + 32;
     const finalResponse = await ollama.chat({
-      model: "mistral:latest",
+      model: "llama3.1:latest",
       messages: [
+        assistantInstructions,
         ...body.messages,
         response.message,
         { role: "tool", tool_name: "celsius_to_fahrenheit", content: String(fahrenheit) },
