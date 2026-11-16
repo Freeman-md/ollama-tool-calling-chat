@@ -4,31 +4,63 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 
 type Message = { id: number; role: "user" | "assistant"; content: string };
 
+function isChatResponse(value: unknown): value is { content: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "content" in value &&
+    typeof value.content === "string"
+  );
+}
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const transcriptEnd = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     transcriptEnd.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);
 
-  function sendMessage(event: FormEvent<HTMLFormElement>) {
+  async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const content = draft.trim();
-    if (!content) return;
+    if (!content || isPending) return;
 
     const id = Date.now();
-    setMessages((current) => [
-      ...current,
-      { id, role: "user", content },
-      {
-        id: id + 1,
-        role: "assistant",
-        content: "This is a temporary stub reply. Your chat is working.",
-      },
-    ]);
+    const userMessage = { id, role: "user" as const, content };
+    const conversation = [
+      ...messages.map(({ role, content: messageContent }) => ({ role, content: messageContent })),
+      { role: userMessage.role, content: userMessage.content },
+    ];
+    setMessages((current) => [...current, userMessage]);
     setDraft("");
+    setError(null);
+    setIsPending(true);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: conversation }),
+      });
+      const result: unknown = await response.json();
+
+      if (!response.ok || !isChatResponse(result)) {
+        throw new Error("The reply could not be generated.");
+      }
+
+      setMessages((current) => [
+        ...current,
+        { id: Date.now(), role: "assistant", content: result.content },
+      ]);
+    } catch {
+      setError("Couldn’t get a reply from local Ollama. Check that Ollama is running, then try again.");
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (
@@ -63,6 +95,12 @@ export default function Home() {
                 <p>{message.content}</p>
               </article>
             ))}
+            {isPending && (
+              <article className="message assistant pending-message" role="status">
+                <span className="assistant-mark" aria-hidden="true">✳</span>
+                <p>Thinking…</p>
+              </article>
+            )}
             <div ref={transcriptEnd} />
           </div>
         )}
@@ -72,9 +110,10 @@ export default function Home() {
         <form className="composer" onSubmit={sendMessage}>
           <textarea
             aria-label="Message"
-            placeholder="Send a message"
+            placeholder={isPending ? "Waiting for a reply…" : "Send a message"}
             rows={1}
             value={draft}
+            disabled={isPending}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
@@ -88,7 +127,7 @@ export default function Home() {
             <button
               className="send-button"
               type="submit"
-              disabled={!draft.trim()}
+              disabled={!draft.trim() || isPending}
               aria-label="Send message"
             >
               <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -97,6 +136,7 @@ export default function Home() {
             </button>
           </div>
         </form>
+        {error && <p className="error-message" role="alert">{error}</p>}
         <p className="disclaimer">AI can make mistakes. Check important information.</p>
       </div>
     </main>
