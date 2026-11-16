@@ -1,6 +1,24 @@
-import ollama from "ollama";
+import ollama, { type Tool } from "ollama";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
+
+const celsiusTool: Tool = {
+  type: "function",
+  function: {
+    name: "celsius_to_fahrenheit",
+    description: "Convert a temperature in degrees Celsius to degrees Fahrenheit.",
+    parameters: {
+      type: "object",
+      properties: {
+        celsius: {
+          type: "number",
+          description: "Temperature in degrees Celsius.",
+        },
+      },
+      required: ["celsius"],
+    },
+  },
+};
 
 function isChatMessage(value: unknown): value is ChatMessage {
   return (
@@ -36,9 +54,39 @@ export async function POST(request: Request) {
     const response = await ollama.chat({
       model: "mistral:latest",
       messages: body.messages,
+      tools: [celsiusTool],
       stream: false,
     });
-    return Response.json({ content: response.message.content });
+
+    const toolCall = response.message.tool_calls?.[0];
+    if (!toolCall) {
+      return Response.json({ content: response.message.content });
+    }
+
+    if (toolCall.function.name !== "celsius_to_fahrenheit") {
+      return Response.json({ error: "Ollama requested an unsupported tool." }, { status: 502 });
+    }
+
+    const celsius = toolCall.function.arguments.celsius;
+    if (typeof celsius !== "number" || !Number.isFinite(celsius)) {
+      return Response.json({ error: "Ollama returned an invalid Celsius value." }, { status: 502 });
+    }
+
+    const fahrenheit = (celsius * 9) / 5 + 32;
+    const finalResponse = await ollama.chat({
+      model: "mistral:latest",
+      messages: [
+        ...body.messages,
+        response.message,
+        { role: "tool", tool_name: "celsius_to_fahrenheit", content: String(fahrenheit) },
+      ],
+      stream: false,
+    });
+
+    return Response.json({
+      content: finalResponse.message.content,
+      toolName: "celsius_to_fahrenheit",
+    });
   } catch {
     return Response.json(
       { error: "Unable to reach local Ollama or generate a reply." },

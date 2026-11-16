@@ -2,14 +2,15 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 
-type Message = { id: number; role: "user" | "assistant"; content: string };
+type Message = { id: number; role: "user" | "assistant"; content: string; toolName?: string };
 
-function isChatResponse(value: unknown): value is { content: string } {
+function isChatResponse(value: unknown): value is { content: string; toolName?: string } {
   return (
     typeof value === "object" &&
     value !== null &&
     "content" in value &&
-    typeof value.content === "string"
+    typeof value.content === "string" &&
+    (!("toolName" in value) || typeof value.toolName === "string")
   );
 }
 
@@ -54,7 +55,7 @@ export default function Home() {
 
       setMessages((current) => [
         ...current,
-        { id: Date.now(), role: "assistant", content: result.content },
+        { id: Date.now(), role: "assistant", content: result.content, toolName: result.toolName },
       ]);
     } catch {
       setError("Couldn’t get a reply from local Ollama. Check that Ollama is running, then try again.");
@@ -89,16 +90,27 @@ export default function Home() {
           <div className="message-list">
             {messages.map((message) => (
               <article className={`message ${message.role}`} key={message.id}>
-                {message.role === "assistant" && (
-                  <span className="assistant-mark" aria-hidden="true">✳</span>
+                {message.role === "assistant" ? (
+                  <>
+                    <span className="assistant-mark" aria-hidden="true">✳</span>
+                    <div className="assistant-body">
+                      {message.toolName && (
+                        <span className="tool-used-label">Used {message.toolName}</span>
+                      )}
+                      <p>{message.content}</p>
+                    </div>
+                  </>
+                ) : (
+                  <p>{message.content}</p>
                 )}
-                <p>{message.content}</p>
               </article>
             ))}
             {isPending && (
               <article className="message assistant pending-message" role="status">
                 <span className="assistant-mark" aria-hidden="true">✳</span>
-                <p>Thinking…</p>
+                <div className="assistant-body">
+                  <p>Thinking…</p>
+                </div>
               </article>
             )}
             <div ref={transcriptEnd} />
