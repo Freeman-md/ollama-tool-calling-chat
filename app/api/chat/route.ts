@@ -1,6 +1,15 @@
 import ollama, { type Tool } from "ollama";
+import { z } from "zod";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
+
+export const celsiusConversionSchema = z.object({ celsius: z.number() });
+
+export const conversions = {
+  celsiusToFahrenheit(celsius: number) {
+    return (celsius * 9) / 5 + 32;
+  },
+};
 
 const assistantInstructions = {
   role: "system",
@@ -13,16 +22,9 @@ const celsiusTool: Tool = {
   function: {
     name: "celsius_to_fahrenheit",
     description: "Convert a temperature in degrees Celsius to degrees Fahrenheit.",
-    parameters: {
-      type: "object",
-      properties: {
-        celsius: {
-          type: "number",
-          description: "Temperature in degrees Celsius.",
-        },
-      },
-      required: ["celsius"],
-    },
+    parameters: z.toJSONSchema(celsiusConversionSchema, {
+      io: "input",
+    }) as Tool["function"]["parameters"],
   },
 };
 
@@ -73,12 +75,15 @@ export async function POST(request: Request) {
       return Response.json({ error: "Ollama requested an unsupported tool." }, { status: 502 });
     }
 
-    const celsius = toolCall.function.arguments.celsius;
-    if (typeof celsius !== "number" || !Number.isFinite(celsius)) {
-      return Response.json({ error: "Ollama returned an invalid Celsius value." }, { status: 502 });
+    const result = celsiusConversionSchema.safeParse(toolCall.function.arguments);
+    if (!result.success) {
+      return Response.json(
+        { error: "The conversion tool requires a numeric celsius argument." },
+        { status: 400 },
+      );
     }
 
-    const fahrenheit = (celsius * 9) / 5 + 32;
+    const fahrenheit = conversions.celsiusToFahrenheit(result.data.celsius);
     const finalResponse = await ollama.chat({
       model: "llama3.1:latest",
       messages: [

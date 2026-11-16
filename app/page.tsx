@@ -14,6 +14,15 @@ function isChatResponse(value: unknown): value is { content: string; toolName?: 
   );
 }
 
+function isChatError(value: unknown): value is { error: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "error" in value &&
+    typeof value.error === "string"
+  );
+}
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
@@ -48,6 +57,11 @@ export default function Home() {
         body: JSON.stringify({ messages: conversation }),
       });
       const result: unknown = await response.json();
+
+      if (!response.ok && isChatError(result)) {
+        setError(result.error);
+        return;
+      }
 
       if (!response.ok || !isChatResponse(result)) {
         throw new Error("The reply could not be generated.");
