@@ -1,0 +1,4 @@
+interface:
+  display_name: "Freemancodz Motion"
+  short_description: "Produce or revise Freemancodz motion in Remotion"
+  default_prompt: "Use $freemancodz-motion to create a cinematic product video from this brief."
