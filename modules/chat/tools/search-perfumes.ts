@@ -3,6 +3,8 @@ import { z } from "zod";
 import { searchPerfumes } from "@/modules/catalog/service";
 import { ToolDispatchError } from "../errors";
 
+type CatalogFilters = Parameters<typeof searchPerfumes>[0];
+
 export const name = "search_perfumes";
 export const description =
   "Search the fictional perfume catalog by scent family or price in GBP. Provide at least one filter.";
@@ -56,8 +58,6 @@ export const definition: Tool = {
 };
 
 export const catalog = { searchPerfumes };
-
-type CatalogFilters = Parameters<typeof searchPerfumes>[0];
 
 function poundsToPence(pounds: number): number {
   return Math.round(pounds * 100);

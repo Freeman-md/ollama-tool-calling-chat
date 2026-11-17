@@ -22,3 +22,13 @@
 - For code changes, run relevant tests and `npm run build`; the full test command is `npm test`. When a task changes user-visible chat or tool behavior, exercise the relevant flow in the browser against local Ollama when available. Report anything that could not be verified.
 - Before each task-scoped commit, run `npm run check` and review the diff for correctness, unintended changes, secrets, and generated artifacts. Stop any local server started for verification when finished.
 - Report what changed, verification results, and any remaining limitations. Do not claim a task is complete if its requested acceptance criteria have not been met.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
