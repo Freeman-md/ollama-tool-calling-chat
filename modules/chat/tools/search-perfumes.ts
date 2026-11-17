@@ -57,27 +57,30 @@ export const definition: Tool = {
 
 export const catalog = { searchPerfumes };
 
-export function prepare(arguments_: unknown): () => string {
-  const result = searchPerfumesSchema.safeParse(arguments_);
-  if (!result.success) {
-    throw new ToolDispatchError(
-      "Provide a valid scent family or maximum price in GBP.",
-      400,
-    );
-  }
+type CatalogFilters = Parameters<typeof searchPerfumes>[0];
 
-  const { scentFamily, maxPriceGbp, underPriceGbp, overPriceGbp } = result.data;
-  const filters: Parameters<typeof searchPerfumes>[0] = {
+function poundsToPence(pounds: number): number {
+  return Math.round(pounds * 100);
+}
+
+function toCatalogFilters({
+  scentFamily,
+  maxPriceGbp,
+  underPriceGbp,
+  overPriceGbp,
+}: z.output<typeof searchPerfumesSchema>): CatalogFilters {
+  const filters: CatalogFilters = {
     scentFamily,
     maxPricePence: undefined,
   };
 
   if (maxPriceGbp !== undefined) {
-    filters.maxPricePence = Math.round(maxPriceGbp * 100);
+    filters.maxPricePence = poundsToPence(maxPriceGbp);
   }
 
   if (underPriceGbp !== undefined) {
-    const underPricePence = Math.round(underPriceGbp * 100) - 1;
+    // The catalog uses inclusive pence bounds, so exclude the specified price.
+    const underPricePence = poundsToPence(underPriceGbp) - 1;
     const isStricterLimit =
       filters.maxPricePence === undefined ||
       underPricePence < filters.maxPricePence;
@@ -87,8 +90,22 @@ export function prepare(arguments_: unknown): () => string {
   }
 
   if (overPriceGbp !== undefined) {
-    filters.minPricePence = Math.round(overPriceGbp * 100) + 1;
+    filters.minPricePence = poundsToPence(overPriceGbp) + 1;
   }
+
+  return filters;
+}
+
+export function prepare(arguments_: unknown): () => string {
+  const result = searchPerfumesSchema.safeParse(arguments_);
+  if (!result.success) {
+    throw new ToolDispatchError(
+      "Provide a valid scent family or maximum price in GBP.",
+      400,
+    );
+  }
+
+  const filters = toCatalogFilters(result.data);
 
   return () => {
     try {
