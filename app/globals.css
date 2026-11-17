@@ -158,7 +158,6 @@ textarea {
   animation: reply-fade 160ms ease-out both;
 }
 .catalog-matches {
-  animation: message-rise 180ms ease-out both;
   margin-top: 22px;
 }
 
@@ -182,6 +181,7 @@ textarea {
   }
 }
 .catalog-matches h2 {
+  animation: reply-fade 100ms ease-out 200ms both;
   color: #6c6963;
   font-size: 12px;
   font-weight: 600;
@@ -194,6 +194,8 @@ textarea {
   grid-template-columns: repeat(auto-fill, minmax(150px, 200px));
 }
 .perfume-card {
+  animation: message-rise 180ms ease-out both;
+  animation-delay: calc(300ms + var(--card-index) * 60ms);
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -356,7 +358,8 @@ textarea {
   .message.user,
   .message.assistant:not(.pending-message) > .assistant-mark,
   .assistant-reply,
-  .catalog-matches {
+  .catalog-matches h2,
+  .perfume-card {
     animation: none;
   }
 }

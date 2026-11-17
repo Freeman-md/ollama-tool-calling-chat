@@ -1,6 +1,12 @@
 "use client";
 
-import { FormEvent, useLayoutEffect, useRef, useState } from "react";
+import {
+  CSSProperties,
+  FormEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import Image from "next/image";
 import {
   ChatErrorResponseSchema,
@@ -165,10 +171,13 @@ export default function Home() {
                           >
                             <h2>Catalog matches</h2>
                             <div className="catalog-grid">
-                              {message.perfumeMatches.map((perfume) => (
+                              {message.perfumeMatches.map((perfume, index) => (
                                 <article
                                   className="perfume-card"
                                   key={perfume.id}
+                                  style={
+                                    { "--card-index": index } as CSSProperties
+                                  }
                                 >
                                   <Image
                                     src={perfume.image.src}
