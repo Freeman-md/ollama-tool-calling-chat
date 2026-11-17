@@ -5,9 +5,12 @@ export function searchPerfumes(filters: {
   scentFamily?: string;
   maxPricePence?: number;
 }): Perfume[] {
-  return perfumes.filter(
-    (perfume) =>
-      (filters.scentFamily === undefined || perfume.scentFamily === filters.scentFamily) &&
-      (filters.maxPricePence === undefined || perfume.pricePence <= filters.maxPricePence),
-  );
+  const { scentFamily, maxPricePence } = filters;
+
+  return perfumes.filter((perfume) => {
+    const matchesScent = scentFamily === undefined || perfume.scentFamily === scentFamily;
+    const matchesPrice = maxPricePence === undefined || perfume.pricePence <= maxPricePence;
+
+    return matchesScent && matchesPrice;
+  });
 }
