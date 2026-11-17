@@ -1,0 +1,11 @@
+{
+  "fps": 30,
+  "frames": 894,
+  "iris": [94, 115],
+  "web": {"start": 94, "question": 122, "send": 148, "reply": 175, "result": 199},
+  "whatsapp": {"start": 242, "question": 259, "send": 283, "reply": 313, "result": 335},
+  "telegram": {"start": 380, "question": 396, "send": 424, "reply": 453, "result": 477},
+  "voice": {"start": 518, "question": 559, "answer": 618, "confirm": 664},
+  "finale": 705,
+  "returnToStart": 872
+}
