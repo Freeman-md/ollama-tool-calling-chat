@@ -1,12 +1,13 @@
 {
   "name": "tool-calling-agent",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --experimental-strip-types --test"
+    "test": "node --import tsx --test"
   },
   "dependencies": {
     "next": "16.4.6",
@@ -19,6 +20,7 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

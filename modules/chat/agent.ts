@@ -1,23 +1,14 @@
 import ollama, { type Message } from "ollama";
-import type { ChatMessage, ChatSuccessResponse } from "./contract.ts";
-import { CHAT_MODEL, MAX_TOOL_ROUNDS } from "../../lib/config.ts";
-import { dispatchToolCalls, ollamaTools, ToolDispatchError } from "./tools.ts";
+import type { ChatMessage, ChatSuccessResponse } from "./types";
+import { CHAT_MODEL, MAX_TOOL_ROUNDS } from "@/lib/config";
+import { ChatAgentError, ToolDispatchError } from "./errors";
+import { dispatchToolCalls, ollamaTools } from "./tools-dispatch";
 
 const assistantInstructions: Message = {
   role: "system",
   content:
     "Be a concise, natural conversational assistant. Answer only what the user asked; do not volunteer code, examples, tool descriptions, or extra suggestions. For greetings and small talk, reply briefly and naturally. Use available tools only when needed to answer the user's actual request.",
 };
-
-export class ChatAgentError extends Error {
-  readonly status: number;
-
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = "ChatAgentError";
-    this.status = status;
-  }
-}
 
 export async function runChat(messages: ChatMessage[]): Promise<ChatSuccessResponse> {
   const conversation: Message[] = [assistantInstructions, ...messages];

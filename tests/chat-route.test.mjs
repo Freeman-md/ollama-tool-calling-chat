@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import ollama from "ollama";
-import { POST } from "../app/api/chat/route.ts";
-import { conversions } from "../modules/chat/tools.ts";
+import { POST } from "@/app/api/chat/route";
+import { conversions } from "@/modules/chat/tools/celsius-to-fahrenheit";
 
 test("rejects a tool call without celsius before conversion or follow-up", async (t) => {
   const chatSpy = t.mock.method(ollama, "chat", async () => ({

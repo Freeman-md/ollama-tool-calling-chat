@@ -5,9 +5,8 @@ import {
   ChatErrorResponseSchema,
   ChatRequestSchema,
   ChatSuccessResponseSchema,
-  type ChatMessage,
-  type ChatRequest,
-} from "../modules/chat/contract.ts";
+} from "@/modules/chat/contract";
+import type { ChatMessage, ChatRequest } from "@/modules/chat/types";
 
 type Message = ChatMessage & { id: number; toolNames?: string[] };
 

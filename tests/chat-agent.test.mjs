@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import ollama from "ollama";
-import { ChatAgentError, runChat } from "../modules/chat/agent.ts";
-import { MAX_TOOL_ROUNDS } from "../lib/config.ts";
-import { conversions } from "../modules/chat/tools.ts";
+import { ChatAgentError } from "@/modules/chat/errors";
+import { runChat } from "@/modules/chat/agent";
+import { MAX_TOOL_ROUNDS } from "@/lib/config";
+import { conversions } from "@/modules/chat/tools/celsius-to-fahrenheit";
 
 const celsiusCall = (celsius) => ({
   function: {
