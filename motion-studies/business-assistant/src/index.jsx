@@ -6,6 +6,8 @@ import {
 import {boxStyle, mix, morphRect, progress} from '../../../skills/freemancodz-motion/assets/motion.mjs';
 import {beats} from './score.mjs';
 import {BusinessStatus, statusFrames} from './status.jsx';
+import {NewBusinessFilm} from './film/index.jsx';
+import {format} from './film/timing.mjs';
 
 const colors = {
   night: '#020c1b', mint: '#64ffda', pearl: '#f2f6f4',
@@ -210,6 +212,8 @@ function Film({proof = false}) {
 }
 
 registerRoot(() => <>
+  <Composition id="FreemancodzFilm" component={NewBusinessFilm} width={format.width} height={format.height} fps={format.fps} durationInFrames={Math.round(format.seconds * format.fps)}/>
+  <Composition id="FilmHandoff" component={NewBusinessFilm} defaultProps={{proof: true}} width={format.width} height={format.height} fps={format.fps} durationInFrames={110}/>
   <Composition id="BusinessStatus" component={BusinessStatus} width={720} height={1280} fps={30} durationInFrames={statusFrames}/>
   <Composition id="StatusHandoff" component={BusinessStatus} defaultProps={{proof: true}} width={720} height={1280} fps={30} durationInFrames={66}/>
   <Composition id="BusinessMotion" component={Film} width={720} height={1280} fps={30} durationInFrames={240}/>

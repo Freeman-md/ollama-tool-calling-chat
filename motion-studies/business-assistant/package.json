@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "sound": "node sound.mjs",
-    "studio": "npm run sound && npm run sound:status && remotion studio src/index.jsx",
+    "studio": "npm run sound && npm run sound:status && npm run sound:film && remotion studio src/index.jsx",
     "render": "npm run sound && remotion render src/index.jsx BusinessMotion out/freemancodz-motion-study.mp4 --codec=h264 --crf=17 --scale=1.5",
     "sound:status": "node status-sound.mjs",
-    "render:status": "npm run sound:status && remotion render src/index.jsx BusinessStatus out/freemancodz-whatsapp-status.mp4 --codec=h264 --crf=18 --scale=1.5"
+    "render:status": "npm run sound:status && remotion render src/index.jsx BusinessStatus out/freemancodz-whatsapp-status.mp4 --codec=h264 --crf=18 --scale=1.5",
+    "sound:film": "node film-sound.mjs",
+    "render:film": "npm run sound:film && remotion render src/index.jsx FreemancodzFilm out/freemancodz-every-channel.mp4 --codec=h264 --crf=18 --scale=1.5"
   },
   "dependencies": {
     "@remotion/cli": "4.0.540",

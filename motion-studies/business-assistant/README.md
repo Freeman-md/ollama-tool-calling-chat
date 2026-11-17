@@ -44,3 +44,13 @@ A fresh Codex app-server outside the source checkout listed the installed skill 
 The conversation screens and stock examples are illustrative. Cedar Dusk’s price and notes follow the catalog. The film reuses the existing storefront, brand, product image and synthesized voice clips. The deterministic instrumental and cues come from `status-sound.mjs`. The cue times and rectangle changes share `src/status-timing.mjs`.
 
 The transition proof covered the Telegram-to-voice handoff. Playback and phone-scale frames of the final export confirmed the four channel identities, readable dialogue and the closing composition. Decode passed and the encoded voice matched its scheduled frames. The final mix measured −20.3 LUFS integrated and −5.3 dBFS true peak. Listening quality was not independently auditioned.
+
+## Every Channel film
+
+Run `npm run render:film` to export the 29.8-second Freemancodz film at 1080 × 1920. The composition is `FreemancodzFilm`. `FilmHandoff` isolates the web-to-WhatsApp transition through the first attachment entrance. The Remotion source is in `src/film/`, with the visual edit and original music using the same timings.
+
+The opening uses a generated editorial portrait of the Cedar Dusk bottle. The channel attachments use the existing catalog photo. Conceptual interactions show a web recommendation, WhatsApp inventory check, Telegram notes and a spoken call. A moving light edge masks camera travel between independently framed scenes. Each channel reveals its product attachment after its own question and reply. The closing links share the assistant mark used in the channel headers.
+
+`film-sound.mjs` generates the original score and reads two local synthesized voice stems to derive the call waveform. Render and review audio as well as frames when revising timing.
+
+Reviewed the encoded film at normal speed and checked consecutive frames across the web-to-WhatsApp handoff, the attachment entrance, and the other channel changes. The revision separates title timing across sweeps and retains the full bottle in the WhatsApp attachment. The final render decodes at 1080 × 1920, 30 fps, with stereo AAC. Both voice stems match their scheduled frames in the encoded audio. The mix measures −21.1 LUFS integrated and −5.2 dBFS true peak. Listening quality was not independently auditioned.
