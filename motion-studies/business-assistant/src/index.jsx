@@ -5,6 +5,7 @@ import {
 } from 'remotion';
 import {boxStyle, mix, morphRect, progress} from '../../../skills/freemancodz-motion/assets/motion.mjs';
 import {beats} from './score.mjs';
+import {BusinessStatus, statusFrames} from './status.jsx';
 
 const colors = {
   night: '#020c1b', mint: '#64ffda', pearl: '#f2f6f4',
@@ -209,6 +210,8 @@ function Film({proof = false}) {
 }
 
 registerRoot(() => <>
+  <Composition id="BusinessStatus" component={BusinessStatus} width={720} height={1280} fps={30} durationInFrames={statusFrames}/>
+  <Composition id="StatusHandoff" component={BusinessStatus} defaultProps={{proof: true}} width={720} height={1280} fps={30} durationInFrames={66}/>
   <Composition id="BusinessMotion" component={Film} width={720} height={1280} fps={30} durationInFrames={240}/>
   <Composition id="HandoffProof" component={Film} defaultProps={{proof: true}} width={720} height={1280} fps={30} durationInFrames={60}/>
 </>);
