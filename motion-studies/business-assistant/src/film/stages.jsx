@@ -109,9 +109,5 @@ export function Closing({time}) {
       border: `1px solid ${theme.line}`, display: 'grid', placeItems: 'center',
       scale: mix(.84, 1, settle), opacity: settle,
     }}><Mark size={118}/></div>
-    <Rise time={time} at={beats.network + 1.19} style={{
-      position: 'absolute', left: 54, right: 54, top: 975, paddingTop: 21,
-      color: theme.muted, fontSize: 24, fontWeight: 740, borderTop: `1px solid ${theme.line}`,
-    }}>Wherever customers already are.</Rise>
   </>;
 }
