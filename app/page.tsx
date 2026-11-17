@@ -1,27 +1,15 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import {
+  ChatErrorResponseSchema,
+  ChatRequestSchema,
+  ChatSuccessResponseSchema,
+  type ChatMessage,
+  type ChatRequest,
+} from "../modules/chat/contract.ts";
 
-type Message = { id: number; role: "user" | "assistant"; content: string; toolName?: string };
-
-function isChatResponse(value: unknown): value is { content: string; toolName?: string } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "content" in value &&
-    typeof value.content === "string" &&
-    (!("toolName" in value) || typeof value.toolName === "string")
-  );
-}
-
-function isChatError(value: unknown): value is { error: string } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "error" in value &&
-    typeof value.error === "string"
-  );
-}
+type Message = ChatMessage & { id: number; toolNames?: string[] };
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -41,7 +29,7 @@ export default function Home() {
 
     const id = Date.now();
     const userMessage = { id, role: "user" as const, content };
-    const conversation = [
+    const conversation: ChatMessage[] = [
       ...messages.map(({ role, content: messageContent }) => ({ role, content: messageContent })),
       { role: userMessage.role, content: userMessage.content },
     ];
@@ -51,25 +39,37 @@ export default function Home() {
     setIsPending(true);
 
     try {
+      const requestBody: ChatRequest = ChatRequestSchema.parse({ messages: conversation });
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: conversation }),
+        body: JSON.stringify(requestBody),
       });
-      const result: unknown = await response.json();
+      const responseBody: unknown = await response.json();
 
-      if (!response.ok && isChatError(result)) {
-        setError(result.error);
-        return;
-      }
-
-      if (!response.ok || !isChatResponse(result)) {
+      if (!response.ok) {
+        const error = ChatErrorResponseSchema.safeParse(responseBody);
+        if (error.success) {
+          setError(error.data.error);
+          return;
+        }
         throw new Error("The reply could not be generated.");
       }
 
+      const result = ChatSuccessResponseSchema.safeParse(responseBody);
+      if (!result.success) {
+        throw new Error("The reply could not be generated.");
+      }
+
+      const toolNames = result.data.toolNames?.length
+        ? result.data.toolNames
+        : result.data.toolName
+          ? [result.data.toolName]
+          : undefined;
+
       setMessages((current) => [
         ...current,
-        { id: Date.now(), role: "assistant", content: result.content, toolName: result.toolName },
+        { id: Date.now(), role: "assistant", content: result.data.content, toolNames },
       ]);
     } catch {
       setError("Couldn’t get a reply from local Ollama. Check that Ollama is running, then try again.");
@@ -108,8 +108,8 @@ export default function Home() {
                   <>
                     <span className="assistant-mark" aria-hidden="true">✳</span>
                     <div className="assistant-body">
-                      {message.toolName && (
-                        <span className="tool-used-label">Used {message.toolName}</span>
+                      {message.toolNames && message.toolNames.length > 0 && (
+                        <span className="tool-used-label">Used {message.toolNames.join(", ")}</span>
                       )}
                       <p>{message.content}</p>
                     </div>
