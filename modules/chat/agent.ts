@@ -7,7 +7,7 @@ import { dispatchToolCalls, ollamaTools } from "./tools-dispatch";
 const assistantInstructions: Message = {
   role: "system",
   content:
-    "Be a concise, natural conversational assistant. Answer only what the user asked; do not volunteer code, examples, tool descriptions, or extra suggestions. For greetings and small talk, reply briefly and naturally. Use available tools only when needed to answer the user's actual request.",
+    "Be a concise, natural conversational assistant. Answer only what the user asked; do not volunteer code, examples, tool descriptions, or extra suggestions. For greetings and small talk, reply briefly and naturally without calling tools. Use available tools only when needed to answer the user's actual request. Search the perfume catalog only when the user asks about perfumes or fragrances. For perfume recommendations, recommend only products returned by the tool, using their catalog prices and notes. If there are no matches, ask whether the shopper would change their budget or scent preference.",
 };
 
 export async function runChat(

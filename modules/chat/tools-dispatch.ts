@@ -1,6 +1,7 @@
 import type { Message, Tool, ToolCall } from "ollama";
 import { ToolDispatchError } from "./errors";
 import * as celsiusToFahrenheit from "./tools/celsius-to-fahrenheit";
+import * as searchPerfumes from "./tools/search-perfumes";
 
 type ToolRegistration = {
   definition: Tool;
@@ -11,6 +12,7 @@ export type ToolRegistry = Readonly<Record<string, ToolRegistration>>;
 
 const toolRegistry = {
   [celsiusToFahrenheit.name]: celsiusToFahrenheit,
+  [searchPerfumes.name]: searchPerfumes,
 } satisfies ToolRegistry;
 
 export const ollamaTools = Object.values(toolRegistry).map(
