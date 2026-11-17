@@ -32,11 +32,11 @@ function Reply({children}) {
   </div>;
 }
 
-export function Web({time}) {
+export function Web({time, item}) {
   const {question, reply, product} = reveals.web;
   const enlarge = progress(time, product, product + 1.8);
   return <>
-    <ChannelHeading time={time} at={beats.web + .04}>Find the right product.</ChannelHeading>
+    <ChannelHeading time={time} at={beats.web + .04}>{item.webTitle}</ChannelHeading>
     <div style={{
       position: 'absolute', left: 48, top: 345, width: 624, height: 610,
       borderRadius: 30, overflow: 'hidden', background: theme.paper, color: theme.text,
@@ -50,7 +50,7 @@ export function Web({time}) {
         <span style={{
           flex: 1, textAlign: 'center', borderRadius: 7, padding: '6px 0',
           background: theme.paper, color: theme.secondary, fontSize: 15, fontWeight: 800,
-        }}>STUDIO SHOP</span>
+        }}>{item.shop}</span>
         <Icon name="web" size={22}/>
       </div>
       <div style={{height: 76, padding: '0 24px', display: 'flex', alignItems: 'center', gap: 13}}>
@@ -58,20 +58,23 @@ export function Web({time}) {
         <span style={{marginLeft: 'auto', color: theme.secondary, fontSize: 16, fontWeight: 800}}>WEB</span>
       </div>
       <div style={{padding: '9px 25px'}}>
-        <Rise time={time} at={question}><Prompt tone="#d8f0e4">A woody scent under £45?</Prompt></Rise>
-        <Rise time={time} at={reply} style={{marginTop: 14}}><Reply>Try Cedar Dusk.</Reply></Rise>
+        <Rise time={time} at={question}><Prompt tone="#d8f0e4">{item.webQuestion}</Prompt></Rise>
+        <Rise time={time} at={reply} style={{marginTop: 14}}><Reply>Try {item.name}.</Reply></Rise>
         <Rise time={time} at={product} distance={46} duration={.64} style={{margin: '18px 0 0 41px'}}>
           <div style={{
             height: 208, display: 'flex', alignItems: 'stretch', overflow: 'hidden',
             borderRadius: 19, background: '#172721', color: theme.white,
           }}>
             <div style={{width: 212, overflow: 'hidden', flexShrink: 0}}>
-              <ProductImage style={{width: '100%', height: '100%', transform: `scale(${1.04 + .07 * enlarge})`}}/>
+              <ProductImage item={item} style={{
+                width: '100%', height: '100%', padding: item.photoFit === 'contain' ? 14 : undefined,
+                transform: `scale(${1.04 + .07 * enlarge})`,
+              }}/>
             </div>
             <div style={{padding: '24px 21px', alignSelf: 'center'}}>
-              <div style={{color: theme.warm, fontSize: 16, fontWeight: 800, letterSpacing: '.10em'}}>WOODY</div>
-              <div style={{fontSize: 32, fontWeight: 800, marginTop: 6, letterSpacing: '-.05em'}}>Cedar Dusk</div>
-              <div style={{fontSize: 25, marginTop: 6}}>£40.00</div>
+              <div style={{color: item.openingAccent, fontSize: 16, fontWeight: 800, letterSpacing: '.10em'}}>{item.category}</div>
+              <div style={{fontSize: 32, fontWeight: 800, marginTop: 6, letterSpacing: '-.05em'}}>{item.name}</div>
+              <div style={{fontSize: 25, marginTop: 6}}>{item.price}</div>
             </div>
           </div>
         </Rise>
@@ -84,23 +87,20 @@ const chats = {
   whatsapp: {
     title: 'Check what’s in stock.',
     name: 'WhatsApp', accent: theme.whatsapp, body: theme.message, bubble: theme.waBubble,
-    question: 'Is Cedar Dusk in stock?', reply: 'Yes, ready to order.',
   },
   telegram: {
-    title: 'Get the details.',
     name: 'Telegram', accent: theme.telegram, body: theme.tgGlass, bubble: theme.tgBubble,
-    question: 'What are the scent notes?', reply: 'Here are the three main notes.',
   },
 };
 
-function StockAttachment() {
+function StockAttachment({item}) {
   return <div style={{
     background: '#fff', color: theme.text, borderRadius: 18, padding: 9,
     boxShadow: '0 8px 26px #1c3d3226',
   }}>
-    <ProductImage style={{display: 'block', width: '100%', height: 232, borderRadius: 12, objectPosition: 'center 60%'}}/>
+    <ProductImage item={item} style={{display: 'block', width: '100%', height: 232, borderRadius: 12, objectPosition: item.stockPhotoPosition}}/>
     <div style={{padding: '9px 8px 6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-      <span style={{fontSize: 23, fontWeight: 850}}>Cedar Dusk</span>
+      <span style={{fontSize: 23, fontWeight: 850}}>{item.name}</span>
       <span style={{fontSize: 16, fontWeight: 850, display: 'flex', gap: 4, color: theme.whatsapp}}>
         <Icon name="check" size={18}/> In stock
       </span>
@@ -108,16 +108,16 @@ function StockAttachment() {
   </div>;
 }
 
-function NotesAttachment({time}) {
+function DetailsAttachment({time, item}) {
   return <div style={{
     display: 'flex', height: 185, gap: 16, alignItems: 'center',
     background: '#fff', color: theme.text, borderRadius: 19, padding: 13,
     boxShadow: '0 8px 26px #31577523',
   }}>
-    <ProductImage style={{width: 133, height: 157, borderRadius: 12, flexShrink: 0}}/>
+    <ProductImage item={item} style={{width: 133, height: 157, borderRadius: 12, flexShrink: 0}}/>
     <div>
-      <div style={{fontSize: 26, fontWeight: 850, marginBottom: 7}}>Cedar Dusk</div>
-      {['Cedarwood', 'Sandalwood', 'Vetiver'].map((note, i) =>
+      <div style={{fontSize: 26, fontWeight: 850, marginBottom: 7}}>{item.name}</div>
+      {item.details.map((note, i) =>
         <Rise key={note} time={time} at={reveals.telegram.product + .15 + i * .14} duration={.3} distance={8}
           style={{fontSize: 18, fontWeight: 740, lineHeight: 1.5, color: theme.telegram}}>
           <span aria-hidden="true">· </span>{note}
@@ -126,12 +126,12 @@ function NotesAttachment({time}) {
   </div>;
 }
 
-export function Messenger({time, type}) {
+export function Messenger({time, type, item}) {
   const data = chats[type];
   const {question, reply, product} = reveals[type];
   const telegram = type === 'telegram';
   return <>
-    <ChannelHeading time={time} at={beats[type] + .04}>{data.title}</ChannelHeading>
+    <ChannelHeading time={time} at={beats[type] + .04}>{telegram ? item.detailsTitle : data.title}</ChannelHeading>
     <div style={{
       position: 'absolute', left: telegram ? 73 : 104, top: telegram ? 364 : 328,
       width: telegram ? 574 : 512, height: telegram ? 602 : 668,
@@ -150,11 +150,11 @@ export function Messenger({time, type}) {
           </span>
         </div>
         <div style={{padding: '24px 21px'}}>
-          <Rise time={time} at={question}><Prompt tone={data.bubble}>{data.question}</Prompt></Rise>
-          <Rise time={time} at={reply} style={{marginTop: 22}}><Reply>{data.reply}</Reply></Rise>
+          <Rise time={time} at={question}><Prompt tone={data.bubble}>{telegram ? item.detailsQuestion : `Is ${item.name} in stock?`}</Prompt></Rise>
+          <Rise time={time} at={reply} style={{marginTop: 22}}><Reply>{telegram ? item.detailsReply : 'Yes, ready to order.'}</Reply></Rise>
           <Rise time={time} at={product} duration={.58} distance={telegram ? 31 : 56} style={{
             margin: '17px 25px 0 40px', maxWidth: 410,
-          }}>{telegram ? <NotesAttachment time={time}/> : <StockAttachment/>}</Rise>
+          }}>{telegram ? <DetailsAttachment time={time} item={item}/> : <StockAttachment item={item}/>}</Rise>
         </div>
         <div style={{
           position: 'absolute', bottom: 16, left: 18, right: 18, height: 44, borderRadius: 24,
@@ -166,13 +166,13 @@ export function Messenger({time, type}) {
   </>;
 }
 
-export function Voice({time, waveform}) {
+export function Voice({time, waveform, item}) {
   const speech = time < beats.answer ? waveform.question : waveform.answer;
   const start = time < beats.answer ? beats.question : beats.answer;
   const index = Math.floor((time - start) * 30);
   const level = speech[index] ?? 0;
   return <>
-    <ChannelHeading time={time} at={beats.voice + .04}>Ask on a call.</ChannelHeading>
+    <ChannelHeading time={time} at={beats.voice + .04}>{item.voiceTitle}</ChannelHeading>
     <div style={{
       position: 'absolute', left: 100, top: 344, width: 520, height: 630, borderRadius: 52,
       color: theme.white, background: 'linear-gradient(145deg,#173b45,#09192a 76%)',
@@ -191,11 +191,11 @@ export function Voice({time, waveform}) {
         width: 4, borderRadius: 4, background: theme.mint, opacity: .42 + .58 * Math.sin(Math.PI * (i + 1) / 40),
       }}/>)}</div>
       <Rise time={time} at={beats.question} duration={.26} style={{position: 'absolute', top: 334, insetInline: 18, fontSize: 25, fontWeight: 750}}>
-        “How much is Cedar Dusk?”
+        “{item.voiceQuestion}”
       </Rise>
       <Rise time={time} at={beats.answer} duration={.26} style={{
         position: 'absolute', top: 394, insetInline: 25, fontSize: 25, fontWeight: 800, color: theme.mint,
-      }}>“It’s £40, and it’s in stock.”</Rise>
+      }}>“{item.voiceAnswer}”</Rise>
       <div style={{
         position: 'absolute', left: '50%', bottom: 38, translate: '-50% 0',
         display: 'grid', placeItems: 'center', width: 62, height: 62,

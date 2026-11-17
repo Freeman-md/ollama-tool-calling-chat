@@ -8,7 +8,12 @@ import {Brand, theme} from './visual.jsx';
 import {Web, Messenger, Voice} from './channels.jsx';
 import {Opening, Hub, Closing} from './stages.jsx';
 import {beats, format, handoffs} from './timing.mjs';
-import waveform from './waveform.json';
+import perfumeWaveform from './waveform.json';
+import phoneWaveform from './phone-waveform.json';
+import {perfume, phone} from './presets.mjs';
+
+const products = {perfume, phone};
+const waveforms = {perfume: perfumeWaveform, phone: phoneWaveform};
 
 const backdrop = [
   ['#203a39', '#132d38'], ['#29504a', '#0f1c30'], ['#375054', '#142738'],
@@ -47,31 +52,31 @@ function Room({index, time}) {
   </AbsoluteFill>;
 }
 
-function Content({index, time}) {
-  if (index === 0) return <Opening time={time}/>;
+function Content({index, time, item, waveform}) {
+  if (index === 0) return <Opening time={time} item={item}/>;
   if (index === 1) return <Hub time={time}/>;
-  if (index === 2) return <Web time={time}/>;
-  if (index === 3) return <Messenger time={time} type="whatsapp"/>;
-  if (index === 4) return <Messenger time={time} type="telegram"/>;
-  if (index === 5) return <Voice time={time} waveform={waveform}/>;
+  if (index === 2) return <Web time={time} item={item}/>;
+  if (index === 3) return <Messenger time={time} type="whatsapp" item={item}/>;
+  if (index === 4) return <Messenger time={time} type="telegram" item={item}/>;
+  if (index === 5) return <Voice time={time} waveform={waveform} item={item}/>;
   return <Closing time={time}/>;
 }
 
-function Shot({index, time, shiftX = 0, shiftY = 0, scale = 1, blur = 0, mask}) {
+function Shot({index, time, item, waveform, shiftX = 0, shiftY = 0, scale = 1, blur = 0, mask}) {
   return <AbsoluteFill style={{maskImage: mask}}>
     {index !== 0 && <Room index={index} time={time}/>}
     <AbsoluteFill style={{
       transform: `translate(${shiftX}px,${shiftY}px) scale(${scale})`,
       transformOrigin: '360px 660px', filter: blur > .3 ? `blur(${blur}px)` : undefined,
-    }}><Content index={index} time={time}/></AbsoluteFill>
+    }}><Content index={index} time={time} item={item} waveform={waveform}/></AbsoluteFill>
   </AbsoluteFill>;
 }
 
-function Edit({time}) {
+function Edit({time, item, waveform}) {
   const active = handoffs.findIndex(({at, span}) => time >= at - span / 2 && time < at + span / 2);
   if (active === -1) {
     const settled = handoffs.filter(({at}) => time >= at).length;
-    return <Shot index={settled} time={time}/>;
+    return <Shot index={settled} time={time} item={item} waveform={waveform}/>;
   }
 
   const {at, span, axis} = handoffs[active];
@@ -88,10 +93,10 @@ function Edit({time}) {
   const edgeX = (direction.x < 0 ? 1 - position : position) * format.width;
   const edgeY = (1 - position) * format.height;
   return <>
-    <Shot index={active} time={time}
+    <Shot index={active} time={time} item={item} waveform={waveform}
       shiftX={direction.x * displacement * travel} shiftY={direction.y * displacement * travel}
       scale={1 + .048 * travel} blur={motion * 2.1}/>
-    <Shot index={active + 1} time={time} mask={matte}
+    <Shot index={active + 1} time={time} item={item} waveform={waveform} mask={matte}
       shiftX={-direction.x * displacement * (1 - travel)} shiftY={-direction.y * displacement * (1 - travel)}
       scale={1 - .055 * (1 - travel)} blur={motion * 2.1}/>
     <div style={{
@@ -105,21 +110,22 @@ function Edit({time}) {
 
 const grain = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='156' height='156'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.83' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Cpath fill='%23fff' d='M0 0h156v156H0z' filter='url(%23n)'/%3E%3C/svg%3E")`;
 
-export function NewBusinessFilm({proof = false}) {
+export function NewBusinessFilm({proof = false, business = 'perfume'}) {
+  const item = products[business];
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const time = frame / fps + (proof ? 9.25 : 0);
   return <AbsoluteFill style={{overflow: 'hidden', background: theme.ink, color: theme.paper, fontFamily: 'Manrope, sans-serif'}}>
     <style>{`@font-face{font-family:Manrope;src:url(${staticFile('manrope.woff2')}) format('woff2');font-weight:200 800}*{box-sizing:border-box}`}</style>
     <LoadFont/>
-    <Edit time={time}/>
+    <Edit time={time} item={item} waveform={waveforms[business]}/>
     <Brand/>
     <AbsoluteFill style={{pointerEvents: 'none', background: 'radial-gradient(ellipse at 50% 48%,transparent 58%,#020c1b66)'}}/>
     <AbsoluteFill style={{pointerEvents: 'none', backgroundImage: grain, mixBlendMode: 'soft-light', opacity: .09}}/>
     {!proof && <>
       <Audio src={staticFile('film-mix.wav')}/>
-      <Sequence from={Math.round(beats.question * fps)}><Audio src={staticFile('film-question.wav')} volume={.92}/></Sequence>
-      <Sequence from={Math.round(beats.answer * fps)}><Audio src={staticFile('film-answer.wav')} volume={.92}/></Sequence>
+      <Sequence from={Math.round(beats.question * fps)}><Audio src={staticFile(`${item.audioPrefix}-question.wav`)} volume={.92}/></Sequence>
+      <Sequence from={Math.round(beats.answer * fps)}><Audio src={staticFile(`${item.audioPrefix}-answer.wav`)} volume={.92}/></Sequence>
     </>}
   </AbsoluteFill>;
 }

@@ -67,6 +67,6 @@ export function Brand() {
   }}/>;
 }
 
-export function ProductImage({style}) {
-  return <Img src={staticFile('cedar-dusk.webp')} style={{objectFit: 'cover', ...style}}/>;
+export function ProductImage({style, item}) {
+  return <Img src={staticFile(item.photo)} style={{objectFit: item.photoFit, background: theme.midnight, ...style}}/>;
 }

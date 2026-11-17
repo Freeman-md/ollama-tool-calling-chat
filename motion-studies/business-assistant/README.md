@@ -54,3 +54,7 @@ The opening uses a generated editorial portrait of the Cedar Dusk bottle. The ch
 `film-sound.mjs` generates the original score and reads two local synthesized voice stems to derive the call waveform. Render and review audio as well as frames when revising timing.
 
 Reviewed the encoded film at normal speed and checked consecutive frames across the web-to-WhatsApp handoff, the attachment entrance, and the other channel changes. The revision separates title timing across sweeps and retains the full bottle in the WhatsApp attachment. The final render decodes at 1080 × 1920, 30 fps, with stereo AAC. Both voice stems match their scheduled frames in the encoded audio. The mix measures −21.1 LUFS integrated and −5.2 dBFS true peak. Listening quality was not independently auditioned.
+
+## Phone-shop Status film
+
+Run `npm run render:phone` to export `out/freemancodz-phone-shop.mp4`. The `FreemancodzPhoneFilm` composition uses the same choreography and assistant identity with its own dialogue and channel results. The studio image frames the official [Apple UK Glacier iPhone 18 Pro product image and its stock Vitra wallpaper](https://www.apple.com/uk/shop/buy-iphone/iphone-18-pro/6.3-inch-display-256gb-glacier). The stock and pickup replies are illustrative. Product content is in `src/film/presets.mjs`, and the phone call uses its own voice stems and derived waveform.

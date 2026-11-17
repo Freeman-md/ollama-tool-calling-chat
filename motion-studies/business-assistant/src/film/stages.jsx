@@ -4,14 +4,26 @@ import {Icon, Mark, Rise, theme} from './visual.jsx';
 import {beats} from './timing.mjs';
 import {mix, progress} from '../../../../skills/freemancodz-motion/assets/motion.mjs';
 
-export function Opening({time}) {
+export function Opening({time, item}) {
   const push = progress(time, 0, beats.core);
   const title = 1 - progress(time, beats.core - .48, beats.core - .2);
+  const camera = `translate(${-11 * push}px,${-6 * push}px) scale(${1.035 + .075 * push})`;
   return <>
-    <Img src={staticFile('film-bottle.webp')} style={{
-      position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
-      transform: `translate(${-11 * push}px,${-6 * push}px) scale(${1.035 + .075 * push})`,
-    }}/>
+    <div style={{position: 'absolute', inset: 0, transform: camera}}>
+      <Img src={staticFile(item.hero)} style={{
+        position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+      }}/>
+      {item.productOnStage && <>
+        <div style={{
+          position: 'absolute', left: 122, top: 883, width: 476, height: 43,
+          background: 'radial-gradient(ellipse, #020713db 0%, #05132290 35%, transparent 71%)',
+        }}/>
+        <Img src={staticFile(item.photo)} style={{
+          position: 'absolute', left: 133, bottom: 376, width: 454,
+          filter: 'drop-shadow(-12px 8px 16px #050e23ac) drop-shadow(5px 3px 19px #7bd5fa34)',
+        }}/>
+      </>}
+    </div>
     <div style={{
       position: 'absolute', inset: 0,
       background: 'linear-gradient(180deg,#020c1b55,transparent 43%,transparent 64%,#020c1bb8 88%,#020c1b)',
@@ -19,12 +31,12 @@ export function Opening({time}) {
     <div style={{opacity: title}}><Rise time={time} at={-.21} style={{
       position: 'absolute', top: 174, left: 54, right: 58, fontSize: 64,
       lineHeight: 1.02, letterSpacing: '-.062em', fontWeight: 800,
-    }}>Your shop.<br/><span style={{color: theme.mint}}>One assistant.</span></Rise></div>
+    }}>{item.opening}<br/><span style={{color: theme.mint}}>One assistant.</span></Rise></div>
     <Rise time={time} at={.8} style={{
       position: 'absolute', left: 55, right: 55, top: 1006, paddingTop: 19,
-      borderTop: '1px solid #f4c3925c', display: 'flex', justifyContent: 'space-between',
-      fontSize: 22, fontWeight: 780, color: theme.warm,
-    }}><span>Cedar Dusk</span><span>£40.00</span></Rise>
+      borderTop: `1px solid ${item.openingAccent}5c`, display: 'flex', justifyContent: 'space-between',
+      fontSize: 22, fontWeight: 780, color: item.openingAccent,
+    }}><span>{item.name}</span><span>{item.price}</span></Rise>
   </>;
 }
 

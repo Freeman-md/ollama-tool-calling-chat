@@ -67,8 +67,8 @@ header.write('data', 36);
 header.writeUInt32LE(buffer.length, 40);
 writeFileSync(new URL('./public/film-mix.wav', import.meta.url), Buffer.concat([header, buffer]));
 
-function envelope(name) {
-  const wav = readFileSync(new URL(`./public/film-${name}.wav`, import.meta.url));
+function envelope(prefix, name) {
+  const wav = readFileSync(new URL(`./public/${prefix}-${name}.wav`, import.meta.url));
   const levels = [];
   if (wav.readUInt16LE(22) !== 1 || wav.readUInt16LE(34) !== 16 || wav.readUInt32LE(24) !== rate) {
     throw Error('Expected 48 kHz 16-bit mono dialogue');
@@ -94,5 +94,7 @@ function envelope(name) {
   throw Error(`Missing voice data for ${name}`);
 }
 
-writeFileSync(new URL('./src/film/waveform.json', import.meta.url),
-  JSON.stringify({question: envelope('question'), answer: envelope('answer')}) + '\n');
+for (const [prefix, output] of [['film', 'waveform'], ['phone', 'phone-waveform']]) {
+  const data = {question: envelope(prefix, 'question'), answer: envelope(prefix, 'answer')};
+  writeFileSync(new URL(`./src/film/${output}.json`, import.meta.url), JSON.stringify(data) + '\n');
+}

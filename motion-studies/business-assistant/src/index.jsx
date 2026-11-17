@@ -212,6 +212,7 @@ function Film({proof = false}) {
 }
 
 registerRoot(() => <>
+  <Composition id="FreemancodzPhoneFilm" component={NewBusinessFilm} defaultProps={{business: 'phone'}} width={format.width} height={format.height} fps={format.fps} durationInFrames={Math.round(format.seconds * format.fps)}/>
   <Composition id="FreemancodzFilm" component={NewBusinessFilm} width={format.width} height={format.height} fps={format.fps} durationInFrames={Math.round(format.seconds * format.fps)}/>
   <Composition id="FilmHandoff" component={NewBusinessFilm} defaultProps={{proof: true}} width={format.width} height={format.height} fps={format.fps} durationInFrames={110}/>
   <Composition id="BusinessStatus" component={BusinessStatus} width={720} height={1280} fps={30} durationInFrames={statusFrames}/>
