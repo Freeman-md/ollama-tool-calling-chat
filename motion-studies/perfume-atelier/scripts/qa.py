@@ -68,7 +68,7 @@ def sound_cues(fx):
     return score
 
 
-def voice_alignment(movie):
+def voice_alignment(movie, edition):
     import wave
     rate = 48000
     decoded = remotion("ffmpeg", [
@@ -77,8 +77,11 @@ def voice_alignment(movie):
     with wave.open(BytesIO(decoded), "rb") as stream:
         mix = array.array("h", stream.readframes(stream.getnframes()))
     alignment = []
+    audio = ROOT / "public/audio"
+    if edition == "phone":
+        audio /= "phone"
     for key in ("question", "answer"):
-        with wave.open(str(ROOT / f"public/audio/call-{key}.wav"), "rb") as take:
+        with wave.open(str(audio / f"call-{key}.wav"), "rb") as take:
             voice = array.array("h", take.readframes(take.getnframes()))
         start = PLAN["voice"][key] * rate // PLAN["fps"]
         points = range(0, len(voice), 24)
@@ -102,6 +105,7 @@ def main():
     p.add_argument("--size", default="1080x1920")
     p.add_argument("--seek-proof", type=Path)
     p.add_argument("--effects", type=Path)
+    p.add_argument("--edition", choices=("perfume", "phone"), default="perfume")
     p.add_argument("--silent", action="store_true")
     p.add_argument("--allow-uniform", action="append", type=int, default=[])
     p.add_argument("--output", type=Path, required=True)
@@ -134,7 +138,7 @@ def main():
             results["audio"] = levels
             if levels["truePeakDbTP"] >= -1.0 or not -24.0 <= levels["integratedLUFS"] <= -13.0:
                 errors.append("True peak or programme loudness outside review range")
-            alignment = voice_alignment(args.movie)
+            alignment = voice_alignment(args.movie, args.edition)
             results["dialogueAlignment"] = alignment
             if any(abs(take["offsetMs"]) >= 20 or take["correlation"] < .85 for take in alignment):
                 errors.append("An encoded dialogue take is missing or out of sync")

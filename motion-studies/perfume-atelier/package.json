@@ -10,7 +10,9 @@
     "studio": "remotion studio src/index.tsx",
     "check": "tsc --noEmit",
     "audio": "python3 scripts/score.py",
-    "render": "remotion render src/index.tsx PerfumeAtelier out/freemancodz-perfume-atelier.mp4 --codec=h264 --crf=18 --scale=1.5 --color-space=bt709"
+    "render": "remotion render src/index.tsx PerfumeAtelier out/freemancodz-perfume-atelier.mp4 --codec=h264 --crf=18 --scale=1.5 --color-space=bt709",
+    "audio:phone": "python3 scripts/score.py --edition phone",
+    "render:phone": "remotion render src/index.tsx PhoneAtelier out/freemancodz-phone-atelier.mp4 --codec=h264 --crf=18 --scale=1.5 --color-space=bt709"
   },
   "dependencies": {
     "react": "19.2.8",

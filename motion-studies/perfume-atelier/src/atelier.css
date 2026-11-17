@@ -149,3 +149,30 @@ h2 { font-size: 61px; line-height: 1; letter-spacing: -.059em; }
   background: #301f1de6; color: #fae7ca; font-size: 17px; font-weight: 730;
 }
 .channel svg { color: #d3f1d3; flex: none; }
+
+.edition-phone { background: #090f1b; color: #eaf1ff; }
+.edition-phone .hero { background: #090f1b; }
+.edition-phone .hero-grade { background: linear-gradient(180deg,#080f1b70,transparent 42%,transparent 72%,#080f1bc4 98%); }
+.edition-phone .hero-source, .edition-phone .eyebrow { color: #bbd5f1; }
+.edition-phone .final-shade { background: linear-gradient(180deg,#07112552,transparent 44%,transparent 70%,#091423d9 93%); }
+.edition-phone .shutter-ring, .edition-phone .seal-halo { border-color: #bfdfff; box-shadow: 0 0 27px #98c5ff90; }
+.edition-phone .scene.web { background: radial-gradient(ellipse at 65% 49%,#446382,#202f4a 62%,#111b2d 90%); }
+.edition-phone .scene.voice { background: radial-gradient(ellipse at 63% 42%,#3c465d,#222732 65%,#131820 99%); }
+.edition-phone .browser-bar { background: #d4dfeb; border-color: #bccbdf; }
+.edition-phone .browser-bar i { background: #788aa1; }
+.edition-phone .browser-bar span { background: #edf4ff; color: #3e536f; }
+.edition-phone .browser .chat-body { background: #ecf2fa; }
+.edition-phone .browser .platform-bar, .edition-phone .browser .compose { background: #f7faff; color: #223446; }
+.edition-phone .web .outgoing { background: #cdddf0; }
+.edition-phone .product { background: #202f47; color: #f1f6ff; }
+.edition-phone .product-detail { color: #c5d8f4; }
+.edition-phone .product > img { object-fit: contain; padding: 10px 9px; background: #162236; }
+.edition-phone .channel { background: #172940e6; border-color: #b4d5ff6b; color: #e2edff; }
+.hero-device {
+  position: absolute; width: 418px; left: 151px; bottom: 329px;
+  filter: drop-shadow(-11px 12px 18px #060910b5) drop-shadow(6px -3px 22px #8abaf244);
+}
+.device-shadow {
+  position: absolute; width: 470px; height: 41px; left: 125px; bottom: 307px;
+  background: radial-gradient(ellipse,#040813de 3%,#0408137a 45%,transparent 70%);
+}

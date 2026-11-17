@@ -25,3 +25,18 @@ The [Shotcraft circle-match-iris recipe](https://vincentwei1021.github.io/video-
 python3 scripts/qa.py out/freemancodz-perfume-atelier.mp4 --effects out/audio-stems/effects.wav --output out/qa.json
 node scripts/playback.mjs --browser /path/to/chrome-headless-shell --output out/playback.json out/freemancodz-perfume-atelier.mp4
 ```
+
+## Phone shop edition
+
+```sh
+npm run audio:phone
+npm run render:phone
+```
+
+This renders `out/freemancodz-phone-atelier.mp4`. The PhoneAtelier composition uses the same timing and handoffs with a slate-blue stage, a new score and separate call takes. The closing camera aligns with the opening before the loop blend. The product artwork and UK price come from [Apple UK’s Glacier iPhone 18 Pro product page](https://www.apple.com/uk/shop/buy-iphone/iphone-18-pro/6.3-inch-display-256gb-glacier), including the Vitra wallpaper. Device details follow [Apple UK’s technical specifications](https://www.apple.com/uk/iphone-18-pro/specs/). The stock and pickup replies are illustrative.
+
+Use `scripts/dialogue.py --edition phone` with the same local model to remake the phone takes. The two presets are `bm_lewis` at 1.10× and `bf_isabella` at 1.01×. The stems and cue sheet export to `out/phone-audio-stems/`.
+
+```sh
+python3 scripts/qa.py out/freemancodz-phone-atelier.mp4 --edition phone --effects out/phone-audio-stems/effects.wav --output out/phone-qa.json
+```

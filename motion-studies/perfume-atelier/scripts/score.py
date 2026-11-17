@@ -1,5 +1,6 @@
 """Original electric piano score, interaction effects and dialogue placement."""
 
+import argparse
 from array import array
 import json
 import math
@@ -73,10 +74,12 @@ def gesture(track, start, duration, gain, kind, pitch=300):
         track[index + 1] += .94 * sample
 
 
-def music_track():
+def music_track(edition):
     track = stereo()
     beat = .625
     chords = [(38, 53, 57, 60, 64), (34, 53, 57, 60, 62), (43, 53, 57, 58, 62), (45, 55, 58, 61, 64)]
+    if edition == "phone":
+        chords = [(40, 55, 59, 62, 66), (36, 55, 59, 62, 64), (43, 54, 59, 62, 66), (38, 54, 57, 60, 64)]
     for bar in range(12):
         start = 4 * bar * beat
         bass, *voicing = chords[bar % len(chords)]
@@ -121,12 +124,12 @@ def effects_track():
     return track, cues
 
 
-def dialogue_track():
+def dialogue_track(audio):
     track = stereo()
     markers = {}
     levels = {}
     for name, frame in (("question", CLOCK["voice"]["question"]), ("answer", CLOCK["voice"]["answer"])):
-        with wave.open(str(ROOT / f"public/audio/call-{name}.wav"), "rb") as take:
+        with wave.open(str(audio / f"call-{name}.wav"), "rb") as take:
             assert (take.getframerate(), take.getnchannels(), take.getsampwidth()) == (RATE, 1, 2)
             samples = array("h", take.readframes(take.getnframes()))
         markers[name] = {"frame": frame, "start": frame / CLOCK["fps"], "end": (frame * STEP + len(samples)) / RATE}
@@ -138,10 +141,19 @@ def dialogue_track():
 
 
 def main():
-    music = music_track()
-    effects, cues = effects_track()
-    voice, levels, markers = dialogue_track()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--edition", choices=("perfume", "phone"), default="perfume")
+    edition = parser.parse_args().edition
+    audio = ROOT / "public/audio"
     stems = ROOT / "out/audio-stems"
+    levels_path = ROOT / "src/voice-levels.json"
+    if edition == "phone":
+        audio /= "phone"
+        stems = ROOT / "out/phone-audio-stems"
+        levels_path = ROOT / "src/phone-voice-levels.json"
+    music = music_track(edition)
+    effects, cues = effects_track()
+    voice, levels, markers = dialogue_track(audio)
     stems.mkdir(parents=True, exist_ok=True)
     for i in range(LENGTH):
         t = i / RATE
@@ -159,8 +171,8 @@ def main():
     write(stems / "music.wav", music)
     write(stems / "effects.wav", effects)
     write(stems / "dialogue.wav", voice)
-    write(ROOT / "public/audio/mix.wav", (a + b + c for a, b, c in zip(music, effects, voice)))
-    (ROOT / "src/voice-levels.json").write_text(json.dumps(levels, separators=(",", ":")) + "\n")
+    write(audio / "mix.wav", (a + b + c for a, b, c in zip(music, effects, voice)))
+    levels_path.write_text(json.dumps(levels, separators=(",", ":")) + "\n")
     (stems / "cue-sheet.json").write_text(json.dumps({"fps": CLOCK["fps"], "dialogue": markers, "effects": cues}, indent=2) + "\n")
     print(f"Audio rendered at {RATE} Hz, stereo, with sample peak {20 * math.log10(peak):.1f} dBFS")
 

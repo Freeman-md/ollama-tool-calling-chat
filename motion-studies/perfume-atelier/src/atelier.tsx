@@ -1,7 +1,7 @@
 import type {CSSProperties, ReactNode} from 'react';
 import {AbsoluteFill, Audio, Img, Easing, interpolate, staticFile, useCurrentFrame} from 'remotion';
 import clock from './timing.json';
-import voiceLevels from './voice-levels.json';
+import {editions, type Edition, type InboxChannel} from './editions';
 import './atelier.css';
 
 type Channel = 'web' | 'whatsapp' | 'telegram' | 'voice';
@@ -41,75 +41,71 @@ function Lift({frame, at, children, className}: {frame: number; at: number; chil
   return <div className={className} style={{opacity: rise, transform: `translateY(${(1 - rise) * 23}px)`}}>{children}</div>;
 }
 
-function Artwork({frame}: {frame: number}) {
+function Artwork({frame, edition}: {frame: number; edition: Edition}) {
   const move = unit(frame, 0, 112, Easing.bezier(.3, .13, .45, 1));
   return <>
-    <Img src={staticFile('art/counter.webp')} className="artwork"
-      style={{transform: `translate(${-9 * move}px,${-8 * move}px) scale(${1 + move * .078})`}} />
+    <AbsoluteFill style={{transformOrigin: '53% 64%', transform: `translate(${-9 * move}px,${-8 * move}px) scale(${1 + move * .078})`}}>
+      <Img src={staticFile(edition.stage)} className="artwork"/>
+      {edition.cutout && <><div className="device-shadow"/><Img src={staticFile(edition.cutout)} className="hero-device" alt="Glacier iPhone 18 Pro"/></>}
+    </AbsoluteFill>
     <div className="hero-grade" />
   </>;
 }
 
-function Hero({frame}: {frame: number}) {
+function Hero({frame, edition}: {frame: number; edition: Edition}) {
   const collect = unit(frame, 39, 35);
   const pulse = unit(frame, 76, 22);
   const clear = 1 - unit(frame, 90, 14);
   return <AbsoluteFill className="hero">
-    <Artwork frame={frame}/>
+    <Artwork frame={frame} edition={edition}/>
     <header className="hero-title" style={{opacity: clear}}>
-      <div className="eyebrow">FRAGRANCE RETAIL</div>
-      <h1>The perfume<br/>counter.</h1>
+      <div className="eyebrow">{edition.category}</div>
+      <h1>{edition.opening[0]}<br/>{edition.opening[1]}</h1>
     </header>
     <div className="seal-stage">
       <div className="seal-halo" style={{opacity: .55 * Math.sin(Math.PI * pulse), scale: String(1 + 1.55 * pulse)}}/>
       <div style={{opacity: collect, scale: String(.78 + collect * .22 - pulse * .07)}}><Seal size={64}/></div>
     </div>
-    <div className="hero-source" style={{opacity: collect * clear}}>Catalogue <b>·</b> Stock <b>·</b> Scent notes</div>
+    <div className="hero-source" style={{opacity: collect * clear}}>{edition.sources[0]} <b>·</b> {edition.sources[1]} <b>·</b> {edition.sources[2]}</div>
   </AbsoluteFill>;
 }
 
-const conversation = {
-  web: {label: 'Find a fragrance', question: 'A woody scent under £45?', reply: 'I’d suggest Cedar Dusk. It’s £40.'},
-  whatsapp: {label: 'Check stock', question: 'Do you have Emberwood?', reply: 'Yes, Emberwood is in stock.'},
-  telegram: {label: 'Explore the notes', question: 'What are Emberwood’s notes?', reply: 'Rich oud, earthy patchouli and warm amber.'},
-};
-
-function ProductTile({channel, frame}: {channel: keyof typeof conversation; frame: number}) {
-  const cedar = channel === 'web';
-  const telegram = channel === 'telegram';
-  const title = cedar ? 'Cedar Dusk' : 'Emberwood';
+function ProductTile({channel, frame, edition}: {channel: InboxChannel; frame: number; edition: Edition}) {
+  const {title, image, description, price, specs} = edition.scenes[channel].product;
   const at = clock[channel].result;
   return <Lift frame={frame} at={at} className="product-wrap">
     <div className="product">
-      <Img src={staticFile(cedar ? 'art/cedar.webp' : 'art/ember.webp')} alt={title}/>
+      <Img src={staticFile(image)} alt={title}/>
       <div className="product-content">
         <div className="product-name">{title}</div>
-        {cedar && <><div className="product-detail">Woody · Cedar and vetiver</div><strong>£40</strong></>}
+        {description && <div className="product-detail">{description}</div>}
+        {price && <strong>{price}</strong>}
         {channel === 'whatsapp' && <div className="in-stock"><span />In stock</div>}
-        {telegram && <div className="notes">{['Oud', 'Patchouli', 'Amber'].map((note, i) =>
+        {specs && <div className="notes">{specs.map((note, i) =>
           <span key={note} style={{opacity: unit(frame, at + 7 + i * 4, 8)}}>{note}</span>)}</div>}
       </div>
     </div>
   </Lift>;
 }
 
-function Inbox({frame, channel}: {frame: number; channel: keyof typeof conversation}) {
-  const {label, question, reply} = conversation[channel];
+function Inbox({frame, channel, edition}: {frame: number; channel: InboxChannel; edition: Edition}) {
+  const {label, question, reply} = edition.scenes[channel];
   const {question: typeAt, send, reply: replyAt} = clock[channel];
   const typed = unit(frame, typeAt, send - typeAt, Easing.linear);
   const sent = frame >= send;
   const browser = channel === 'web';
+  const headingOpacity = browser && edition.cutout ? unit(frame, clock.iris[1] - 2, 8) : undefined;
   return <AbsoluteFill className={`scene ${channel}`}>
     <div className="studio-shade"/>
-    <header className="scene-heading">
+    <header className="scene-heading" style={{opacity: headingOpacity}}>
       <div className="eyebrow"><Icon type={channel} size={20}/>{names[channel]}</div>
       <h2>{label}</h2>
     </header>
     <div className={`interface ${browser ? 'browser' : 'chat'}`}>
-      {browser && <div className="browser-bar"><i/><i/><i/><span>Fragrance counter</span></div>}
+      {browser && <div className="browser-bar"><i/><i/><i/><span>{edition.store}</span></div>}
       <div className="platform-bar">
         <Seal size={47}/>
-        <div><strong>Fragrance assistant</strong><div>{browser ? 'Online shop' : 'Business chat'}</div></div>
+        <div><strong>{edition.assistant}</strong><div>{browser ? 'Online shop' : 'Business chat'}</div></div>
         <Icon type={channel} size={28}/>
       </div>
       <div className="chat-body">
@@ -119,10 +115,10 @@ function Inbox({frame, channel}: {frame: number; channel: keyof typeof conversat
         <Lift frame={frame} at={replyAt} className="incoming">
           <Seal size={37}/><div className="bubble reply">{reply}</div>
         </Lift>
-        <ProductTile channel={channel} frame={frame}/>
+        <ProductTile channel={channel} frame={frame} edition={edition}/>
       </div>
       <div className="compose">
-        <span className={!sent && typed > 0 ? 'typing' : ''}>{sent || !typed ? (browser ? 'Ask about a fragrance' : 'Message') : question.slice(0, Math.max(1, Math.round(typed * question.length)))}</span>
+        <span className={!sent && typed > 0 ? 'typing' : ''}>{sent || !typed ? (browser ? edition.placeholder : 'Message') : question.slice(0, Math.max(1, Math.round(typed * question.length)))}</span>
         <span className="send" style={{scale: String(1 - .2 * Math.sin(Math.PI * unit(frame, send - 3, 9)))}}><Icon type="send" size={23}/></span>
       </div>
     </div>
@@ -130,10 +126,10 @@ function Inbox({frame, channel}: {frame: number; channel: keyof typeof conversat
   </AbsoluteFill>;
 }
 
-function Voice({frame}: {frame: number}) {
+function Voice({frame, edition}: {frame: number; edition: Edition}) {
   const {start, question, answer, confirm} = clock.voice;
   const position = frame < answer ? frame - question : frame - answer;
-  const levels = frame < answer ? voiceLevels.question : voiceLevels.answer;
+  const levels = frame < answer ? edition.levels.question : edition.levels.answer;
   const level = levels[position] ?? 0;
   const seconds = Math.max(0, Math.floor((frame - start - 12) / clock.fps));
   return <AbsoluteFill className="scene voice">
@@ -145,17 +141,17 @@ function Voice({frame}: {frame: number}) {
     <div className="interface call">
       <div className="call-timer">ON THE CALL · 00:{String(seconds).padStart(2, '0')}</div>
       <Seal size={102}/>
-      <div className="call-title">Fragrance assistant</div>
+      <div className="call-title">{edition.assistant}</div>
       <div className="wave" aria-hidden="true">{Array.from({length: 39}, (_, i) => {
         const focus = Math.sin(Math.PI * (i + 1) / 40);
         const flicker = .26 + .74 * Math.abs(Math.sin(frame * .62 + i * 1.27));
         return <i key={i} style={{height: 4 + (5 + level * 57 * flicker) * focus, opacity: .48 + .52 * focus}}/>;
       })}</div>
       <div className="transcript">
-        <Lift frame={frame} at={question}>“Can I collect today?”</Lift>
-        <Lift frame={frame} at={answer}><strong>“Yes, we’re open until six.”</strong></Lift>
+        <Lift frame={frame} at={question}>“{edition.voice.question}”</Lift>
+        <Lift frame={frame} at={answer}><strong>“{edition.voice.answer}”</strong></Lift>
       </div>
-      <Lift frame={frame} at={confirm} className="collection"><span>✓</span> Pickup today · until 6 pm</Lift>
+      <Lift frame={frame} at={confirm} className="collection"><span>✓</span> {edition.voice.confirmation}</Lift>
       <div className="call-controls">
         <i><Icon type="mic" size={27}/></i><i><Icon type="speaker" size={26}/></i><i><Icon type="end" size={31}/></i>
       </div>
@@ -164,15 +160,18 @@ function Voice({frame}: {frame: number}) {
   </AbsoluteFill>;
 }
 
-function Finale({frame}: {frame: number}) {
+function Finale({frame, edition}: {frame: number; edition: Edition}) {
   const at = clock.finale;
   const title = 1 - unit(frame, clock.returnToStart - 11, 11);
   const lift = `translateY(${-57 * unit(frame, at + 22, 23)}px)`;
+  const pullback = edition.cutout
+    ? 112 * (1 - unit(frame, at, clock.returnToStart - at))
+    : 112 - 54 * unit(frame, at, 90);
   return <AbsoluteFill className="hero finale">
-    <Artwork frame={112 - 54 * unit(frame, at, 90)}/>
+    <Artwork frame={pullback} edition={edition}/>
     <div className="final-shade"/>
     <header className="hero-title" style={{opacity: title}}>
-      <Lift frame={frame} at={at + 5}><div className="eyebrow">THE CONNECTED COUNTER</div><h1>One assistant.<br/>Four ways to ask.</h1></Lift>
+      <Lift frame={frame} at={at + 5}><div className="eyebrow">{edition.closing}</div><h1>One assistant.<br/>Four ways to ask.</h1></Lift>
     </header>
     <div className="seal-stage" style={{transform: lift}}>
       <Lift frame={frame} at={at + 5}><Seal size={64}/></Lift>
@@ -185,20 +184,20 @@ function Finale({frame}: {frame: number}) {
   </AbsoluteFill>;
 }
 
-function Scene({index, frame}: {index: number; frame: number}) {
-  if (index === 0) return <Hero frame={frame}/>;
-  if (index === 5) return <Finale frame={frame}/>;
-  if (index === 4) return <Voice frame={frame}/>;
-  return <Inbox frame={frame} channel={order[index - 1] as keyof typeof conversation}/>;
+function Scene({index, frame, edition}: {index: number; frame: number; edition: Edition}) {
+  if (index === 0) return <Hero frame={frame} edition={edition}/>;
+  if (index === 5) return <Finale frame={frame} edition={edition}/>;
+  if (index === 4) return <Voice frame={frame} edition={edition}/>;
+  return <Inbox frame={frame} channel={order[index - 1] as InboxChannel} edition={edition}/>;
 }
 
 const starts = [0, clock.iris[0], clock.whatsapp.start, clock.telegram.start, clock.voice.start, clock.finale];
 const handoff = [0, clock.iris[1] - clock.iris[0], 16, 16, 17, 24];
 
-function Cut({index, frame}: {index: number; frame: number}) {
-  if (index === 0) return <Hero frame={frame}/>;
+function Cut({index, frame, edition}: {index: number; frame: number; edition: Edition}) {
+  if (index === 0) return <Hero frame={frame} edition={edition}/>;
   const movement = unit(frame, starts[index], handoff[index], Easing.bezier(.55, .03, .3, 1));
-  if (movement === 1) return <Scene index={index} frame={frame}/>;
+  if (movement === 1) return <Scene index={index} frame={frame} edition={edition}/>;
   // The visible seal, both mattes and the camera pivot share one project-space centre.
   const radial = index === 1 || index === 5;
   const radius = 29 + 1173 * movement;
@@ -210,9 +209,9 @@ function Cut({index, frame}: {index: number; frame: number}) {
   const drift = radial ? `scale(${1 + .10 * movement})` : `translateX(${-flip * 78 * movement}px) scale(${1 + .035 * movement})`;
   return <>
     <AbsoluteFill style={{transform: drift, transformOrigin: radial ? `${iris.x}px ${iris.y}px` : 'center'}}>
-      <Scene index={index - 1} frame={frame}/>
+      <Scene index={index - 1} frame={frame} edition={edition}/>
     </AbsoluteFill>
-    <AbsoluteFill style={incoming}><Scene index={index} frame={frame}/></AbsoluteFill>
+    <AbsoluteFill style={incoming}><Scene index={index} frame={frame} edition={edition}/></AbsoluteFill>
     {radial && <div className="shutter-ring" style={{
       top: iris.y - radius, left: iris.x - radius, width: radius * 2, height: radius * 2,
       opacity: .88 * Math.sin(Math.PI * movement),
@@ -220,14 +219,15 @@ function Cut({index, frame}: {index: number; frame: number}) {
   </>;
 }
 
-export function Atelier() {
+export function Atelier({variant = 'perfume'}: {variant?: keyof typeof editions}) {
+  const edition = editions[variant];
   const frame = useCurrentFrame();
   const index = starts.filter((start) => frame >= start).length - 1;
   const restart = unit(frame, clock.returnToStart, clock.frames - clock.returnToStart - 2);
-  return <AbsoluteFill className="film">
-    <Cut index={index} frame={frame}/>
-    {restart > 0 && <AbsoluteFill style={{opacity: restart}}><Hero frame={0}/></AbsoluteFill>}
+  return <AbsoluteFill className={`film edition-${variant}`}>
+    <Cut index={index} frame={frame} edition={edition}/>
+    {restart > 0 && <AbsoluteFill style={{opacity: restart}}><Hero frame={0} edition={edition}/></AbsoluteFill>}
     <Img className="freemancodz" src={staticFile('art/freemancodz.svg')} alt="Freemancodz"/>
-    <Audio src={staticFile('audio/mix.wav')}/>
+    <Audio src={staticFile(edition.mix)}/>
   </AbsoluteFill>;
 }

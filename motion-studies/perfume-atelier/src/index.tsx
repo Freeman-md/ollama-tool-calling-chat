@@ -2,5 +2,9 @@ import {Composition, registerRoot} from 'remotion';
 import {Atelier} from './atelier';
 import score from './timing.json';
 
-registerRoot(() => <Composition id="PerfumeAtelier" component={Atelier} width={720} height={1280}
-  fps={score.fps} durationInFrames={score.frames} />);
+const format = {width: 720, height: 1280, fps: score.fps, durationInFrames: score.frames};
+
+registerRoot(() => <>
+  <Composition id="PerfumeAtelier" component={Atelier} {...format} defaultProps={{variant: 'perfume' as const}} />
+  <Composition id="PhoneAtelier" component={Atelier} {...format} defaultProps={{variant: 'phone' as const}} />
+</>);
