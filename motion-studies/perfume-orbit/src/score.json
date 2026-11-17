@@ -1,0 +1,16 @@
+{
+  "fps": 30,
+  "frames": 990,
+  "arrive": [0, 126, 312, 467, 632, 852],
+  "flights": [
+    [94, 126],
+    [280, 312],
+    [435, 467],
+    [600, 632],
+    [806, 852]
+  ],
+  "web": { "type": 139, "send": 165, "reply": 187, "result": 210 },
+  "whatsapp": { "type": 323, "send": 349, "reply": 375, "result": 395 },
+  "telegram": { "type": 478, "send": 506, "reply": 530, "result": 549 },
+  "voice": { "question": 659, "answer": 720, "confirm": 769 }
+}
