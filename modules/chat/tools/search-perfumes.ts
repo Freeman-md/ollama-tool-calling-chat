@@ -67,30 +67,33 @@ export function prepare(arguments_: unknown): () => string {
   }
 
   const { scentFamily, maxPriceGbp, underPriceGbp, overPriceGbp } = result.data;
-  const maxPricePence =
-    maxPriceGbp === undefined ? undefined : Math.round(maxPriceGbp * 100);
-  const underPricePence =
-    underPriceGbp === undefined
-      ? undefined
-      : Math.round(underPriceGbp * 100) - 1;
-  const minPricePence =
-    overPriceGbp === undefined ? undefined : Math.round(overPriceGbp * 100) + 1;
-  let upperBound = maxPricePence;
-  if (
-    underPricePence !== undefined &&
-    (upperBound === undefined || underPricePence < upperBound)
-  ) {
-    upperBound = underPricePence;
+  const filters: Parameters<typeof searchPerfumes>[0] = {
+    scentFamily,
+    maxPricePence: undefined,
+  };
+
+  if (maxPriceGbp !== undefined) {
+    filters.maxPricePence = Math.round(maxPriceGbp * 100);
   }
+
+  if (underPriceGbp !== undefined) {
+    const underPricePence = Math.round(underPriceGbp * 100) - 1;
+    const isStricterLimit =
+      filters.maxPricePence === undefined ||
+      underPricePence < filters.maxPricePence;
+    if (isStricterLimit) {
+      filters.maxPricePence = underPricePence;
+    }
+  }
+
+  if (overPriceGbp !== undefined) {
+    filters.minPricePence = Math.round(overPriceGbp * 100) + 1;
+  }
+
   return () => {
     try {
-      return JSON.stringify(
-        catalog.searchPerfumes({
-          scentFamily,
-          ...(minPricePence === undefined ? {} : { minPricePence }),
-          maxPricePence: upperBound,
-        }),
-      );
+      const matches = catalog.searchPerfumes(filters);
+      return JSON.stringify(matches);
     } catch {
       throw new ToolDispatchError(
         "Couldn’t check the perfume catalog. Try again.",
