@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
   ChatErrorResponseSchema,
@@ -24,11 +24,20 @@ export default function Home() {
   const [draft, setDraft] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const transcriptEnd = useRef<HTMLDivElement>(null);
+  const shouldFollow = useRef(false);
 
-  useEffect(() => {
-    transcriptEnd.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages]);
+  useLayoutEffect(() => {
+    if (!shouldFollow.current) return;
+
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    window.scrollTo({
+      top: document.documentElement.scrollHeight,
+      behavior: reducedMotion ? "instant" : "smooth",
+    });
+    shouldFollow.current = false;
+  }, [messages, isPending]);
 
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -44,6 +53,7 @@ export default function Home() {
       })),
       { role: userMessage.role, content: userMessage.content },
     ];
+    shouldFollow.current = true;
     setMessages((current) => [...current, userMessage]);
     setDraft("");
     setError(null);
@@ -80,6 +90,11 @@ export default function Home() {
           ? [result.data.toolName]
           : undefined;
 
+      const distanceFromBottom =
+        document.documentElement.scrollHeight -
+        window.innerHeight -
+        window.scrollY;
+      shouldFollow.current = distanceFromBottom <= 120;
       setMessages((current) => [
         ...current,
         {
@@ -134,12 +149,14 @@ export default function Home() {
                       ✳
                     </span>
                     <div className="assistant-body">
-                      {message.toolNames && message.toolNames.length > 0 && (
-                        <span className="tool-used-label">
-                          Used {message.toolNames.join(", ")}
-                        </span>
-                      )}
-                      <p>{message.content}</p>
+                      <div className="assistant-reply">
+                        {message.toolNames && message.toolNames.length > 0 && (
+                          <span className="tool-used-label">
+                            Used {message.toolNames.join(", ")}
+                          </span>
+                        )}
+                        <p>{message.content}</p>
+                      </div>
                       {message.perfumeMatches &&
                         message.perfumeMatches.length > 0 && (
                           <section
@@ -195,7 +212,6 @@ export default function Home() {
                 </div>
               </article>
             )}
-            <div ref={transcriptEnd} />
           </div>
         )}
       </section>

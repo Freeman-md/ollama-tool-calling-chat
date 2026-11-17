@@ -139,6 +139,7 @@ textarea {
 }
 .message.user {
   justify-content: flex-end;
+  animation: message-rise 120ms ease-out both;
 }
 .message.user p {
   background: #f0efec;
@@ -152,8 +153,33 @@ textarea {
 .assistant-body {
   min-width: 0;
 }
+.message.assistant:not(.pending-message) > .assistant-mark,
+.assistant-reply {
+  animation: reply-fade 160ms ease-out both;
+}
 .catalog-matches {
+  animation: message-rise 180ms ease-out both;
   margin-top: 22px;
+}
+
+@keyframes message-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes reply-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 .catalog-matches h2 {
   color: #6c6963;
@@ -324,6 +350,15 @@ textarea {
   margin: 9px auto 0;
   max-width: 760px;
   padding: 0 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message.user,
+  .message.assistant:not(.pending-message) > .assistant-mark,
+  .assistant-reply,
+  .catalog-matches {
+    animation: none;
+  }
 }
 
 @media (max-width: 600px) {
