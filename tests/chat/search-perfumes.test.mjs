@@ -18,6 +18,9 @@ test("rejects missing or invalid filters before looking up the catalog", (t) => 
     { maxPriceGbp: 1.001 },
     { maxPriceGbp: "£40" },
     { maxPriceGbp: "1.001" },
+    { underPriceGbp: -1 },
+    { overPriceGbp: 1.001 },
+    { overPriceGbp: Number.MAX_SAFE_INTEGER / 100 },
   ]) {
     assert.throws(() => dispatchToolCalls([searchCall(filters)]), {
       status: 400,
@@ -25,6 +28,51 @@ test("rejects missing or invalid filters before looking up the catalog", (t) => 
     });
   }
   assert.equal(lookup.mock.callCount(), 0);
+});
+
+test("converts inclusive and strict budget bounds to pence", (t) => {
+  const lookup = t.mock.method(catalog, "searchPerfumes");
+  const cases = [
+    {
+      filters: { underPriceGbp: 40 },
+      expectedBounds: { maxPricePence: 3999 },
+      names: [],
+    },
+    {
+      filters: { maxPriceGbp: 40 },
+      expectedBounds: { maxPricePence: 4000 },
+      names: ["Cedar Dusk"],
+    },
+    {
+      filters: { overPriceGbp: 40 },
+      expectedBounds: { minPricePence: 4001, maxPricePence: undefined },
+      names: ["Emberwood"],
+    },
+    {
+      filters: { maxPriceGbp: 55, underPriceGbp: 55, overPriceGbp: 40 },
+      expectedBounds: { minPricePence: 4001, maxPricePence: 5499 },
+      names: [],
+    },
+    {
+      filters: { underPriceGbp: 0 },
+      expectedBounds: { maxPricePence: -1 },
+      names: [],
+    },
+  ];
+
+  for (const { filters, expectedBounds, names } of cases) {
+    const result = dispatchToolCalls([
+      searchCall({ scentFamily: "woody", ...filters }),
+    ]);
+    assert.deepEqual(lookup.mock.calls.at(-1).arguments[0], {
+      scentFamily: "woody",
+      ...expectedBounds,
+    });
+    assert.deepEqual(
+      JSON.parse(result.toolResults[0].content).map((perfume) => perfume.name),
+      names,
+    );
+  }
 });
 
 test("normalizes scent and converts pounds to pence before searching", (t) => {

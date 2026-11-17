@@ -56,3 +56,23 @@ test("filters by maximum price alone", () => {
   );
   assert.deepEqual(searchPerfumes({ maxPricePence: 0 }), []);
 });
+
+test("applies the inclusive minimum alongside other filters", () => {
+  assert.deepEqual(
+    searchPerfumes({
+      scentFamily: "woody",
+      minPricePence: 4000,
+      maxPricePence: 4000,
+    }).map((p) => p.name),
+    ["Cedar Dusk"],
+  );
+  assert.deepEqual(
+    searchPerfumes({
+      scentFamily: "woody",
+      minPricePence: 4001,
+      maxPricePence: 5500,
+    }).map((p) => p.name),
+    ["Emberwood"],
+  );
+  assert.deepEqual(searchPerfumes({ minPricePence: 5501 }), []);
+});

@@ -85,3 +85,10 @@ Earlier tests with `llama3.1:latest` produced these results:
 - “Hey.” did not reliably produce a tool-free greeting: the model attempted an empty perfume search in two runs and called the Celsius tool in another. These are observed model failures, not expected behavior.
 
 Model responses can vary between runs.
+
+For the budget-boundary smoke test with `qwen3.5:9b`:
+
+- “I want a woody fragrance under 40 quid.” returned no match and asked about changing the budget or scent family. It called `search_perfumes` three times.
+- “I want a woody fragrance for £40 or less.” returned Cedar Dusk at £40 with cedarwood, sandalwood, and vetiver.
+- The follow-up “Any similar scent above £40?” returned Emberwood at £55 with oud, patchouli, and amber.
+- In a fresh chat, “I want a woody fragrance above £40.” also returned Emberwood at £55 with its catalog notes.
