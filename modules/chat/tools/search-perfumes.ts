@@ -96,7 +96,7 @@ function toCatalogFilters({
   return filters;
 }
 
-export function prepare(arguments_: unknown): () => string {
+export function prepare(arguments_: unknown) {
   const result = searchPerfumesSchema.safeParse(arguments_);
   if (!result.success) {
     throw new ToolDispatchError(
@@ -110,7 +110,19 @@ export function prepare(arguments_: unknown): () => string {
   return () => {
     try {
       const matches = catalog.searchPerfumes(filters);
-      return JSON.stringify(matches);
+      const catalogDetails = matches.map(
+        ({ id, name, pricePence, scentFamily, notes }) => ({
+          id,
+          name,
+          pricePence,
+          scentFamily,
+          notes,
+        }),
+      );
+      return {
+        content: JSON.stringify(catalogDetails),
+        perfumeMatches: matches,
+      };
     } catch {
       throw new ToolDispatchError(
         "Couldn’t check the perfume catalog. Try again.",

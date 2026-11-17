@@ -1,6 +1,6 @@
 # Ollama Tool Calling Chat
 
-A minimal Next.js App Router chat that talks to a local Ollama model. The server offers `celsius_to_fahrenheit` and `search_perfumes`, validating tool arguments with Zod. The perfume catalog contains fictional products.
+A minimal Next.js App Router chat that talks to a local Ollama model. The server offers `celsius_to_fahrenheit` and `search_perfumes`, validating tool arguments with Zod. The perfume catalog contains fictional products, shown as cards with generated product photos when a search finds matches.
 
 ## Prerequisites
 

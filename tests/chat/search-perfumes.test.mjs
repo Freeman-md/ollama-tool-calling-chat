@@ -94,6 +94,7 @@ test("normalizes scent and converts pounds to pence before searching", (t) => {
   ]);
   assert.equal(lookup.mock.calls[1].arguments[0].maxPricePence, 3999);
   assert.equal(noMatches.toolResults[0].content, "[]");
+  assert.deepEqual(noMatches.perfumeMatches, []);
 });
 
 test("returns the catalog error through the chat route when lookup throws", async (t) => {

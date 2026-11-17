@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PerfumeSchema } from "@/modules/catalog/types";
 
 export const ChatMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
@@ -13,6 +14,7 @@ export const ChatSuccessResponseSchema = z.object({
   content: z.string(),
   toolNames: z.array(z.string()).optional(),
   toolName: z.string().optional(),
+  perfumeMatches: z.array(PerfumeSchema).optional(),
 });
 
 export const ChatErrorResponseSchema = z.object({

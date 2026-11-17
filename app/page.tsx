@@ -1,14 +1,23 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import {
   ChatErrorResponseSchema,
   ChatRequestSchema,
   ChatSuccessResponseSchema,
 } from "@/modules/chat/contract";
-import type { ChatMessage, ChatRequest } from "@/modules/chat/types";
+import type {
+  ChatMessage,
+  ChatRequest,
+  ChatSuccessResponse,
+} from "@/modules/chat/types";
 
-type Message = ChatMessage & { id: number; toolNames?: string[] };
+type Message = ChatMessage & {
+  id: number;
+  toolNames?: string[];
+  perfumeMatches?: ChatSuccessResponse["perfumeMatches"];
+};
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -78,6 +87,7 @@ export default function Home() {
           role: "assistant",
           content: result.data.content,
           toolNames,
+          perfumeMatches: result.data.perfumeMatches,
         },
       ]);
     } catch {
@@ -130,6 +140,41 @@ export default function Home() {
                         </span>
                       )}
                       <p>{message.content}</p>
+                      {message.perfumeMatches &&
+                        message.perfumeMatches.length > 0 && (
+                          <section
+                            className="catalog-matches"
+                            aria-label="Catalog matches"
+                          >
+                            <h2>Catalog matches</h2>
+                            <div className="catalog-grid">
+                              {message.perfumeMatches.map((perfume) => (
+                                <article
+                                  className="perfume-card"
+                                  key={perfume.id}
+                                >
+                                  <Image
+                                    src={perfume.image.src}
+                                    alt={perfume.image.alt}
+                                    width={480}
+                                    height={480}
+                                    sizes="(max-width: 600px) 150px, 200px"
+                                  />
+                                  <div className="perfume-card-details">
+                                    <h3>{perfume.name}</h3>
+                                    <span className="perfume-price">
+                                      {new Intl.NumberFormat("en-GB", {
+                                        style: "currency",
+                                        currency: "GBP",
+                                      }).format(perfume.pricePence / 100)}
+                                    </span>
+                                    <p>{perfume.notes.join(" · ")}</p>
+                                  </div>
+                                </article>
+                              ))}
+                            </div>
+                          </section>
+                        )}
                     </div>
                   </>
                 ) : (

@@ -152,6 +152,53 @@ textarea {
 .assistant-body {
   min-width: 0;
 }
+.catalog-matches {
+  margin-top: 22px;
+}
+.catalog-matches h2 {
+  color: #6c6963;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin: 0 0 10px;
+}
+.catalog-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 200px));
+}
+.perfume-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.perfume-card img {
+  aspect-ratio: 1;
+  display: block;
+  height: auto;
+  object-fit: cover;
+  width: 100%;
+}
+.perfume-card-details {
+  padding: 12px;
+}
+.perfume-card h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.perfume-price {
+  color: #4f4b45;
+  font-size: 13px;
+}
+.message .perfume-card p {
+  color: #77736d;
+  font-size: 12px;
+  line-height: 1.45;
+  margin-top: 8px;
+  white-space: normal;
+}
 .tool-used-label {
   color: var(--muted);
   display: block;

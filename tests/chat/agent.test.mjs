@@ -5,12 +5,17 @@ import { ChatAgentError } from "@/modules/chat/errors";
 import { runChat } from "@/modules/chat/agent";
 import { MAX_TOOL_ROUNDS } from "@/lib/config";
 import { conversions } from "@/modules/chat/tools/celsius-to-fahrenheit";
+import { perfumes } from "@/modules/catalog/perfumes";
 
 const celsiusCall = (celsius) => ({
   function: {
     name: "celsius_to_fahrenheit",
     arguments: { celsius },
   },
+});
+
+const perfumeCall = (arguments_) => ({
+  function: { name: "search_perfumes", arguments: arguments_ },
 });
 
 const assistantToolMessage = (...toolCalls) => ({
@@ -98,4 +103,76 @@ test("returns a clear error when Ollama requests a fourth tool round", async (t)
 
   assert.equal(chatSpy.mock.callCount(), MAX_TOOL_ROUNDS + 1);
   assert.equal(conversionSpy.mock.callCount(), MAX_TOOL_ROUNDS);
+});
+
+test("returns perfume matches through the chat response and keeps them after a text-only tool", async (t) => {
+  const requests = [];
+  const responses = [
+    {
+      message: assistantToolMessage(
+        perfumeCall({ scentFamily: "woody", maxPriceGbp: 40 }),
+      ),
+    },
+    { message: assistantToolMessage(celsiusCall(20)) },
+    { message: { role: "assistant", content: "Cedar Dusk." } },
+  ];
+  t.mock.method(ollama, "chat", async (request) => {
+    requests.push({ ...request, messages: [...request.messages] });
+    return responses.shift();
+  });
+
+  const result = await runChat([
+    { role: "user", content: "Find a woody perfume." },
+  ]);
+  assert.deepEqual(result.perfumeMatches, [perfumes[0]]);
+  const { image, ...catalogDetails } = perfumes[0];
+  assert.ok(image.src);
+  assert.deepEqual(JSON.parse(requests[1].messages.at(-1).content), [
+    catalogDetails,
+  ]);
+  assert.deepEqual(result.toolNames, [
+    "search_perfumes",
+    "celsius_to_fahrenheit",
+  ]);
+});
+
+test("returns an empty perfume result and clears earlier matches across rounds", async (t) => {
+  const responses = [
+    {
+      message: assistantToolMessage(
+        perfumeCall({ scentFamily: "woody", maxPriceGbp: 40 }),
+      ),
+    },
+    {
+      message: assistantToolMessage(
+        perfumeCall({ scentFamily: "woody", underPriceGbp: 40 }),
+      ),
+    },
+    { message: { role: "assistant", content: "No matches." } },
+  ];
+  t.mock.method(ollama, "chat", async () => responses.shift());
+
+  const result = await runChat([
+    { role: "user", content: "Find a woody perfume." },
+  ]);
+  assert.deepEqual(result.perfumeMatches, []);
+});
+
+test("keeps the latest perfume result within one tool batch", async (t) => {
+  const responses = [
+    {
+      message: assistantToolMessage(
+        perfumeCall({ scentFamily: "woody", maxPriceGbp: 40 }),
+        perfumeCall({ scentFamily: "woody", underPriceGbp: 40 }),
+        celsiusCall(20),
+      ),
+    },
+    { message: { role: "assistant", content: "No matches." } },
+  ];
+  t.mock.method(ollama, "chat", async () => responses.shift());
+
+  const result = await runChat([
+    { role: "user", content: "Find a woody perfume." },
+  ]);
+  assert.deepEqual(result.perfumeMatches, []);
 });

@@ -1,11 +1,14 @@
 import type { Message, Tool, ToolCall } from "ollama";
+import type { Perfume } from "@/modules/catalog/types";
 import { ToolDispatchError } from "./errors";
 import * as celsiusToFahrenheit from "./tools/celsius-to-fahrenheit";
 import * as searchPerfumes from "./tools/search-perfumes";
 
 type ToolRegistration = {
   definition: Tool;
-  prepare(arguments_: unknown): () => string;
+  prepare(
+    arguments_: unknown,
+  ): () => string | { content: string; perfumeMatches?: Perfume[] };
 };
 
 export type ToolRegistry = Readonly<Record<string, ToolRegistration>>;
@@ -25,6 +28,7 @@ export function dispatchToolCalls(
 ): {
   toolNames: string[];
   toolResults: Message[];
+  perfumeMatches?: Perfume[];
 } {
   const preparedCalls = toolCalls.map((toolCall) => {
     const name = toolCall.function.name;
@@ -39,14 +43,20 @@ export function dispatchToolCalls(
     };
   });
 
-  const toolResults: Message[] = preparedCalls.map(({ name, execute }) => ({
-    role: "tool",
-    tool_name: name,
-    content: execute(),
-  }));
+  let perfumeMatches: Perfume[] | undefined;
+  const toolResults: Message[] = preparedCalls.map(({ name, execute }) => {
+    const result = execute();
+    if (typeof result === "string") {
+      return { role: "tool", tool_name: name, content: result };
+    }
+    if (result.perfumeMatches !== undefined)
+      perfumeMatches = result.perfumeMatches;
+    return { role: "tool", tool_name: name, content: result.content };
+  });
 
   return {
     toolNames: preparedCalls.map(({ name }) => name),
     toolResults,
+    ...(perfumeMatches === undefined ? {} : { perfumeMatches }),
   };
 }
