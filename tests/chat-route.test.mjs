@@ -25,7 +25,9 @@ test("rejects a tool call without celsius before conversion or follow-up", async
     new Request("http://localhost/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: [{ role: "user", content: "Convert this." }] }),
+      body: JSON.stringify({
+        messages: [{ role: "user", content: "Convert this." }],
+      }),
     }),
   );
 

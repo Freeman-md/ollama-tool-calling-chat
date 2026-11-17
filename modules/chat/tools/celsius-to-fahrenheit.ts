@@ -3,7 +3,8 @@ import { z } from "zod";
 import { ToolDispatchError } from "../errors";
 
 export const name = "celsius_to_fahrenheit";
-export const description = "Convert a temperature in degrees Celsius to degrees Fahrenheit.";
+export const description =
+  "Convert a temperature in degrees Celsius to degrees Fahrenheit.";
 export const celsiusConversionSchema = z.object({ celsius: z.number() });
 
 export const definition: Tool = {

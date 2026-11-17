@@ -3,12 +3,18 @@ import {
   ChatRequestSchema,
   ChatSuccessResponseSchema,
 } from "@/modules/chat/contract";
-import type { ChatErrorResponse, ChatRequest, ChatSuccessResponse } from "@/modules/chat/types";
+import type {
+  ChatErrorResponse,
+  ChatRequest,
+  ChatSuccessResponse,
+} from "@/modules/chat/types";
 import { ChatAgentError } from "@/modules/chat/errors";
 import { runChat } from "@/modules/chat/agent";
 
 function errorResponse(message: string, status: number) {
-  const body: ChatErrorResponse = ChatErrorResponseSchema.parse({ error: message });
+  const body: ChatErrorResponse = ChatErrorResponseSchema.parse({
+    error: message,
+  });
   return Response.json(body, { status });
 }
 
@@ -39,6 +45,9 @@ export async function POST(request: Request) {
     if (error instanceof ChatAgentError) {
       return errorResponse(error.message, error.status);
     }
-    return errorResponse("Unable to reach local Ollama or generate a reply.", 502);
+    return errorResponse(
+      "Unable to reach local Ollama or generate a reply.",
+      502,
+    );
   }
 }

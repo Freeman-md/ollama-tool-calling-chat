@@ -29,7 +29,10 @@ export default function Home() {
     const id = Date.now();
     const userMessage = { id, role: "user" as const, content };
     const conversation: ChatMessage[] = [
-      ...messages.map(({ role, content: messageContent }) => ({ role, content: messageContent })),
+      ...messages.map(({ role, content: messageContent }) => ({
+        role,
+        content: messageContent,
+      })),
       { role: userMessage.role, content: userMessage.content },
     ];
     setMessages((current) => [...current, userMessage]);
@@ -38,7 +41,9 @@ export default function Home() {
     setIsPending(true);
 
     try {
-      const requestBody: ChatRequest = ChatRequestSchema.parse({ messages: conversation });
+      const requestBody: ChatRequest = ChatRequestSchema.parse({
+        messages: conversation,
+      });
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -68,10 +73,17 @@ export default function Home() {
 
       setMessages((current) => [
         ...current,
-        { id: Date.now(), role: "assistant", content: result.data.content, toolNames },
+        {
+          id: Date.now(),
+          role: "assistant",
+          content: result.data.content,
+          toolNames,
+        },
       ]);
     } catch {
-      setError("Couldn’t get a reply from local Ollama. Check that Ollama is running, then try again.");
+      setError(
+        "Couldn’t get a reply from local Ollama. Check that Ollama is running, then try again.",
+      );
     } finally {
       setIsPending(false);
     }
@@ -93,7 +105,10 @@ export default function Home() {
         </button>
       </header>
 
-      <section className={`transcript ${messages.length ? "has-messages" : ""}`} aria-live="polite">
+      <section
+        className={`transcript ${messages.length ? "has-messages" : ""}`}
+        aria-live="polite"
+      >
         {messages.length === 0 ? (
           <div className="empty-state">
             <h1>Send a message</h1>
@@ -105,10 +120,14 @@ export default function Home() {
               <article className={`message ${message.role}`} key={message.id}>
                 {message.role === "assistant" ? (
                   <>
-                    <span className="assistant-mark" aria-hidden="true">✳</span>
+                    <span className="assistant-mark" aria-hidden="true">
+                      ✳
+                    </span>
                     <div className="assistant-body">
                       {message.toolNames && message.toolNames.length > 0 && (
-                        <span className="tool-used-label">Used {message.toolNames.join(", ")}</span>
+                        <span className="tool-used-label">
+                          Used {message.toolNames.join(", ")}
+                        </span>
                       )}
                       <p>{message.content}</p>
                     </div>
@@ -119,8 +138,13 @@ export default function Home() {
               </article>
             ))}
             {isPending && (
-              <article className="message assistant pending-message" role="status">
-                <span className="assistant-mark" aria-hidden="true">✳</span>
+              <article
+                className="message assistant pending-message"
+                role="status"
+              >
+                <span className="assistant-mark" aria-hidden="true">
+                  ✳
+                </span>
                 <div className="assistant-body">
                   <p>Thinking…</p>
                 </div>
@@ -148,7 +172,9 @@ export default function Home() {
             }}
           />
           <div className="composer-footer">
-            <span className="composer-hint">↵ to send · shift + ↵ for a new line</span>
+            <span className="composer-hint">
+              ↵ to send · shift + ↵ for a new line
+            </span>
             <button
               className="send-button"
               type="submit"
@@ -161,8 +187,14 @@ export default function Home() {
             </button>
           </div>
         </form>
-        {error && <p className="error-message" role="alert">{error}</p>}
-        <p className="disclaimer">AI can make mistakes. Check important information.</p>
+        {error && (
+          <p className="error-message" role="alert">
+            {error}
+          </p>
+        )}
+        <p className="disclaimer">
+          AI can make mistakes. Check important information.
+        </p>
       </div>
     </main>
   );

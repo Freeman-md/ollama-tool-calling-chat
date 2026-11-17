@@ -8,8 +8,10 @@ export function searchPerfumes(filters: {
   const { scentFamily, maxPricePence } = filters;
 
   return perfumes.filter((perfume) => {
-    const matchesScent = scentFamily === undefined || perfume.scentFamily === scentFamily;
-    const matchesPrice = maxPricePence === undefined || perfume.pricePence <= maxPricePence;
+    const matchesScent =
+      scentFamily === undefined || perfume.scentFamily === scentFamily;
+    const matchesPrice =
+      maxPricePence === undefined || perfume.pricePence <= maxPricePence;
 
     return matchesScent && matchesPrice;
   });

@@ -10,7 +10,9 @@ const assistantInstructions: Message = {
     "Be a concise, natural conversational assistant. Answer only what the user asked; do not volunteer code, examples, tool descriptions, or extra suggestions. For greetings and small talk, reply briefly and naturally. Use available tools only when needed to answer the user's actual request.",
 };
 
-export async function runChat(messages: ChatMessage[]): Promise<ChatSuccessResponse> {
+export async function runChat(
+  messages: ChatMessage[],
+): Promise<ChatSuccessResponse> {
   const conversation: Message[] = [assistantInstructions, ...messages];
   const executedToolNames: string[] = [];
   let toolRounds = 0;

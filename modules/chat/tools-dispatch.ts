@@ -13,7 +13,9 @@ const toolRegistry = {
   [celsiusToFahrenheit.name]: celsiusToFahrenheit,
 } satisfies ToolRegistry;
 
-export const ollamaTools = Object.values(toolRegistry).map((tool) => tool.definition);
+export const ollamaTools = Object.values(toolRegistry).map(
+  (tool) => tool.definition,
+);
 
 export function dispatchToolCalls(
   toolCalls: ToolCall[],
