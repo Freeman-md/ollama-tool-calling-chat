@@ -7,6 +7,7 @@ export function ChatMessage({ message }: { message: DisplayMessage }) {
   const products = message.products ?? [];
   const recommendedProductIds = message.recommendedProductIds ?? [];
   const hasProducts = products.length > 0;
+  const isPending = message.isPending === true;
   const messageClass = `message ${message.role}`;
 
   if (message.role === "user") {
@@ -23,12 +24,14 @@ export function ChatMessage({ message }: { message: DisplayMessage }) {
         ✳
       </span>
       <div className="assistant-body">
-        <div className="assistant-reply">
-          <div className="assistant-content">
-            <Markdown skipHtml>{message.content}</Markdown>
+        <AssistantActivity isPending={isPending} steps={message.activity} />
+        {!isPending && (
+          <div className="assistant-reply">
+            <div className="assistant-content">
+              <Markdown skipHtml>{message.content}</Markdown>
+            </div>
           </div>
-          <AssistantActivity steps={message.activity} />
-        </div>
+        )}
         {hasProducts && (
           <section className="catalog-matches" aria-label="Products">
             <h2>Products</h2>

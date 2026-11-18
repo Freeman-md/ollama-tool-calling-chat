@@ -8,6 +8,7 @@ import { requestChat } from "@/app/_lib/request";
 
 export type DisplayMessage = ChatMessage & {
   id: number;
+  isPending?: boolean;
   activity?: ActivityLabel[];
   products?: ChatSuccessResponse["products"];
   productView?: ChatSuccessResponse["productView"];
@@ -17,10 +18,10 @@ export type DisplayMessage = ChatMessage & {
 export function useChat() {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [draft, setDraft] = useState("");
-  const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activity, setActivity] = useState<ActivityLabel[]>([]);
+  const nextMessageId = useRef(0);
   const shouldFollow = useRef(false);
+  const isPending = messages.at(-1)?.isPending === true;
 
   useLayoutEffect(() => {
     if (!shouldFollow.current) return;
@@ -33,13 +34,18 @@ export function useChat() {
       behavior: reducedMotion ? "instant" : "smooth",
     });
     shouldFollow.current = false;
-  }, [messages, isPending]);
+  }, [messages]);
 
   async function sendMessage() {
     const content = draft.trim();
     if (!content || isPending) return;
 
-    const userMessage = { id: Date.now(), role: "user" as const, content };
+    const userMessage: DisplayMessage = {
+      id: nextMessageId.current++,
+      role: "user",
+      content,
+    };
+    const replyId = nextMessageId.current++;
     const conversation: ChatMessage[] = [
       ...messages.map(({ role, content: messageContent }) => ({
         role,
@@ -48,17 +54,25 @@ export function useChat() {
       { role: userMessage.role, content: userMessage.content },
     ];
     shouldFollow.current = true;
-    setMessages((current) => [...current, userMessage]);
+    setMessages((current) => [
+      ...current,
+      userMessage,
+      { id: replyId, role: "assistant", content: "", isPending: true },
+    ]);
     setDraft("");
     setError(null);
-    setActivity([]);
-    setIsPending(true);
 
     try {
-      const steps: ActivityLabel[] = [];
       const result = await requestChat(conversation, (label) => {
-        steps.push(label);
-        setActivity([...steps]);
+        setMessages((current) =>
+          current.map((message) => {
+            if (message.id !== replyId) return message;
+            return {
+              ...message,
+              activity: [...(message.activity ?? []), label],
+            };
+          }),
+        );
       });
 
       const distanceFromBottom =
@@ -66,29 +80,28 @@ export function useChat() {
         window.innerHeight -
         window.scrollY;
       shouldFollow.current = distanceFromBottom <= 120;
-      setMessages((current) => [
-        ...current,
-        {
-          id: Date.now(),
-          role: "assistant",
-          content: result.content,
-          activity: steps,
-          products: result.products,
-          productView: result.productView,
-          recommendedProductIds: result.recommendedProductIds,
-        },
-      ]);
+      setMessages((current) =>
+        current.map((message) => {
+          if (message.id !== replyId) return message;
+          return {
+            ...message,
+            isPending: false,
+            content: result.content,
+            products: result.products,
+            productView: result.productView,
+            recommendedProductIds: result.recommendedProductIds,
+          };
+        }),
+      );
     } catch (caught) {
+      setMessages((current) => current.filter(({ id }) => id !== replyId));
       setError(
         caught instanceof Error
           ? caught.message
           : "Couldn’t get a reply from local Ollama. Check that Ollama is running, then try again.",
       );
-    } finally {
-      setIsPending(false);
-      setActivity([]);
     }
   }
 
-  return { messages, draft, setDraft, isPending, activity, error, sendMessage };
+  return { messages, draft, setDraft, isPending, error, sendMessage };
 }

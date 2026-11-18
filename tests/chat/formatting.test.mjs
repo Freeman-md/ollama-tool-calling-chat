@@ -26,7 +26,7 @@ test("keeps shopper messages as escaped plain text", () => {
   assert.doesNotMatch(html, /<strong>|<ul>/);
 });
 
-test("shows completed activity below the reply in a collapsed disclosure", () => {
+test("shows completed activity above the reply in a collapsed disclosure", () => {
   const html = renderToStaticMarkup(
     createElement(ChatMessage, {
       message: {
@@ -39,14 +39,35 @@ test("shows completed activity below the reply in a collapsed disclosure", () =>
   );
   assert.match(
     html,
-    /Found it\.[\s\S]*<details class="activity-details"><summary>Activity<\/summary>/,
+    /<button[^>]*aria-expanded="false">Completed <span class="activity-caret"[^>]*><\/span><\/button>[\s\S]*<ol[^>]*hidden=""[\s\S]*Found it\./,
   );
   assert.match(html, /Searching products…[\s\S]*Checking product details…/);
-  assert.doesNotMatch(html, /<details[^>]*\sopen/);
   const plain = renderToStaticMarkup(
     createElement(ChatMessage, {
       message: { id: 2, role: "assistant", content: "Hello." },
     }),
   );
-  assert.doesNotMatch(plain, /<details/);
+  assert.doesNotMatch(plain, /activity-toggle/);
+});
+
+test("shows the latest activity in the assistant row while the reply is pending", () => {
+  const message = { id: 1, role: "assistant", content: "", isPending: true };
+  const thinking = renderToStaticMarkup(
+    createElement(ChatMessage, { message }),
+  );
+  assert.match(thinking, /role="status"[\s\S]*Thinking…/);
+
+  const working = renderToStaticMarkup(
+    createElement(ChatMessage, {
+      message: {
+        ...message,
+        activity: ["Searching products…", "Checking product details…"],
+      },
+    }),
+  );
+  assert.match(working, /role="status"[\s\S]*Checking product details…/);
+  assert.doesNotMatch(
+    working,
+    /Searching products…|activity-toggle|assistant-reply/,
+  );
 });

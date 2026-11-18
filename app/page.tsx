@@ -1,12 +1,11 @@
 "use client";
 
-import { AssistantActivity } from "@/app/_components/AssistantActivity";
 import { ChatComposer } from "@/app/_components/ChatComposer";
 import { ChatMessage } from "@/app/_components/ChatMessage";
 import { useChat } from "@/app/_hooks/use-chat";
 
 export default function Home() {
-  const { messages, draft, setDraft, isPending, activity, error, sendMessage } =
+  const { messages, draft, setDraft, isPending, error, sendMessage } =
     useChat();
   const transcriptClass = `transcript ${messages.length ? "has-messages" : ""}`;
   const isEmpty = messages.length === 0;
@@ -39,7 +38,6 @@ export default function Home() {
             {messages.map((message) => (
               <ChatMessage key={message.id} message={message} />
             ))}
-            {isPending && <AssistantActivity isPending steps={activity} />}
           </div>
         )}
       </section>

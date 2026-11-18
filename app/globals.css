@@ -168,9 +168,12 @@ textarea {
   flex: 1;
   min-width: 0;
 }
-.message.assistant:not(.pending-message) > .assistant-mark,
+.message.assistant > .assistant-mark,
 .assistant-reply {
   animation: reply-fade 160ms ease-out both;
+}
+.assistant-activity + .assistant-reply {
+  margin-top: 6px;
 }
 .catalog-matches {
   margin-top: 22px;
@@ -262,22 +265,86 @@ textarea {
   margin-top: 8px;
   white-space: normal;
 }
-.activity-details {
+.assistant-activity {
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.5;
-  margin-top: 10px;
+  font-size: 14px;
+  line-height: 24px;
 }
-.activity-details summary {
+.message .activity-status {
+  font-size: inherit;
+  line-height: inherit;
+}
+.activity-label {
+  animation: activity-flip 160ms ease-out both;
+  display: inline-block;
+  position: relative;
+  transform-origin: center bottom;
+}
+.activity-sheen {
+  display: none;
+}
+@supports (mask-image: linear-gradient(black, transparent)) {
+  .activity-sheen {
+    animation: activity-shimmer 1.8s ease-in-out 160ms infinite;
+    color: #3e3a35;
+    display: block;
+    inset: 0;
+    mask-image: linear-gradient(
+      105deg,
+      transparent 35%,
+      black 50%,
+      transparent 65%
+    );
+    mask-position: 100% 50%;
+    mask-repeat: no-repeat;
+    mask-size: 240% 100%;
+    pointer-events: none;
+    position: absolute;
+  }
+}
+@keyframes activity-flip {
+  from {
+    opacity: 0;
+    transform: perspective(160px) translateY(4px) rotateX(-24deg);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(160px) translateY(0) rotateX(0);
+  }
+}
+@keyframes activity-shimmer {
+  to {
+    mask-position: 0% 50%;
+  }
+}
+.activity-toggle {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: inherit;
   cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 7px;
+  padding: 0;
   width: fit-content;
 }
-.activity-details ol {
-  margin: 6px 0 0;
-  padding-left: 20px;
+.activity-caret {
+  border-right: 1px solid currentColor;
+  border-top: 1px solid currentColor;
+  height: 5px;
+  transform: rotate(45deg);
+  transition: transform 120ms ease-out;
+  width: 5px;
 }
-.pending-message p {
-  color: var(--muted);
+.activity-toggle[aria-expanded="true"] .activity-caret {
+  transform: rotate(135deg);
+}
+.activity-steps {
+  line-height: 1.5;
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
 }
 .assistant-mark {
   align-items: center;
@@ -398,11 +465,21 @@ textarea {
 
 @media (prefers-reduced-motion: reduce) {
   .message.user,
-  .message.assistant:not(.pending-message) > .assistant-mark,
+  .message.assistant > .assistant-mark,
   .assistant-reply,
+  .activity-label,
   .catalog-matches h2,
   .perfume-card {
     animation: none;
+  }
+  .activity-caret {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce), (forced-colors: active) {
+  .activity-sheen {
+    display: none;
   }
 }
 
