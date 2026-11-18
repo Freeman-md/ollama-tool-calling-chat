@@ -4,5 +4,8 @@ out/
 *.tsbuildinfo
 .vercel/
 .playwright-mcp
+.playwright-cli
 .impeccable
 motion-artifact
+motion-studies
+/output
