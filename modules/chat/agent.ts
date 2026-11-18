@@ -12,6 +12,21 @@ const assistantInstructions: Message = {
     "Be a concise, natural conversational assistant. Answer only what the user asked; do not volunteer code, examples, tool descriptions, or extra suggestions. For greetings and small talk, reply briefly without calling tools. Use list_products to browse, search_products to search the catalog, and get_product_by_id for details or availability. If you need an ID, search by product name first. When the shopper asks for more information, call get_product_by_id with view detailed; for availability alone use compact. Lead with a concise answer and let product cards carry routine details. If mentioning an option above the budget or out of stock, clearly state that trade-off. After searching for a recommendation and finding matches, call reply_with_recommendations alone with your final reply and the IDs you recommend from those results. Use only catalog facts for product recommendations, prices, notes, details and availability. Catalog pricePence is an integer in pence: divide by 100 to get pounds (4000 pence is £40). Do not confuse price with bottle size or other product details. Do not infer or invent scent characteristics or note roles that are not in the catalog. This app has no basket or purchasing functionality; do not offer or imply it. If no matches, ask whether the shopper would change their budget or scent preference.",
 };
 
+function buildResponse({
+  content,
+  products,
+  productView,
+  toolNames = [],
+  recommendedProductIds,
+}: ChatSuccessResponse): ChatSuccessResponse {
+  return {
+    content,
+    ...(products === undefined ? {} : { products, productView }),
+    ...(recommendedProductIds === undefined ? {} : { recommendedProductIds }),
+    ...(toolNames.length > 0 ? { toolNames, toolName: toolNames[0] } : {}),
+  };
+}
+
 export async function runChat(
   messages: ChatMessage[],
 ): Promise<ChatSuccessResponse> {
@@ -34,56 +49,30 @@ export async function runChat(
 
     const toolCalls = response.message.tool_calls ?? [];
     if (toolCalls.length === 0) {
-      return {
+      return buildResponse({
         content: response.message.content,
-        ...(products === undefined ? {} : { products, productView }),
-        ...(executedToolNames.length > 0
-          ? { toolNames: executedToolNames, toolName: executedToolNames[0] }
-          : {}),
-      };
+        products,
+        productView,
+        toolNames: executedToolNames,
+      });
     }
 
     const recommendationCall = toolCalls.find(
       (toolCall) => toolCall.function.name === recommendations.name,
     );
     if (recommendationCall) {
-      if (toolCalls.length !== 1)
-        throw new ChatAgentError(
-          "The recommendation reply must be called on its own.",
-          502,
-        );
-      if (!eligibleProducts?.length)
-        throw new ChatAgentError(
-          "Recommendations require eligible search results.",
-          502,
-        );
-
-      const result = recommendations.schema.safeParse(
-        recommendationCall.function.arguments,
-      );
-      if (!result.success)
-        throw new ChatAgentError(
-          "Ollama returned an invalid recommendation reply.",
-          502,
-        );
-
-      const eligibleIds = new Set(
-        eligibleProducts.map((product) => product.id),
-      );
-      const displayedIds = new Set(
-        (products ?? []).map((product) => product.id),
-      );
-      const recommendedProductIds = [
-        ...new Set(result.data.recommendedProductIds),
-      ].filter((id) => eligibleIds.has(id) && displayedIds.has(id));
-      const toolNames = [...executedToolNames, recommendations.name];
-      return {
-        content: result.data.content,
-        ...(products === undefined ? {} : { products, productView }),
-        recommendedProductIds,
-        toolNames,
-        toolName: toolNames[0],
-      };
+      const recommendation = recommendations.parseRecommendation({
+        arguments_: recommendationCall.function.arguments,
+        toolCallCount: toolCalls.length,
+        eligibleProducts,
+        products,
+      });
+      return buildResponse({
+        ...recommendation,
+        products,
+        productView,
+        toolNames: [...executedToolNames, recommendations.name],
+      });
     }
 
     if (toolRounds >= MAX_TOOL_ROUNDS) {
@@ -105,8 +94,9 @@ export async function runChat(
         products = latestProducts;
         productView = latestProductView;
       }
-      if (latestEligibleProducts !== undefined)
+      if (latestEligibleProducts !== undefined) {
         eligibleProducts = latestEligibleProducts;
+      }
       conversation.push(response.message, ...toolResults);
       executedToolNames.push(...toolNames);
       toolRounds += 1;

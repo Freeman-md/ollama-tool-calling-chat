@@ -14,6 +14,16 @@ const assistantToolMessage = (...toolCalls) => ({
   tool_calls: toolCalls,
 });
 
+test("returns a plain reply without tool or product fields", async (t) => {
+  t.mock.method(ollama, "chat", async () => ({
+    message: { role: "assistant", content: "Hello." },
+  }));
+
+  assert.deepEqual(await runChat([{ role: "user", content: "Hello." }]), {
+    content: "Hello.",
+  });
+});
+
 test("appends all tool results in batch order and keeps the latest products", async (t) => {
   const requests = [];
   const calls = [
