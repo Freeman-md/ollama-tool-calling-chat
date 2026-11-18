@@ -15,6 +15,55 @@ test("lists products in catalog order with a default and explicit limit", () => 
     listProducts({ limit: 2 }).map((product) => product.id),
     ["cedar-dusk", "emberwood"],
   );
+  assert.deepEqual(
+    listProducts({ limit: 7 }).map((product) => product.category),
+    [
+      "perfume",
+      "perfume",
+      "perfume",
+      "watch",
+      "watch",
+      "jewellery",
+      "jewellery",
+    ],
+  );
+});
+
+test("combines category, name, budget and availability", () => {
+  assert.deepEqual(
+    searchProducts({
+      category: "watch",
+      name: "harbour",
+      maxPricePence: 9999,
+      availability: "in_stock",
+    }).map((product) => product.id),
+    ["harbour-classic"],
+  );
+  assert.deepEqual(
+    searchProducts({
+      category: "watch",
+      maxPricePence: 9999,
+      availability: "out_of_stock",
+    }),
+    [],
+  );
+});
+
+test("returns watch and jewellery details and availability", () => {
+  const watch = getProductById("harbour-classic");
+  assert.equal(watch.availability, "in_stock");
+  assert.deepEqual(watch.details, {
+    movement: "quartz",
+    caseDiameterMm: 38,
+    strapMaterial: "leather",
+  });
+  const jewellery = getProductById("silver-link-bracelet");
+  assert.equal(jewellery.availability, "out_of_stock");
+  assert.deepEqual(jewellery.details, {
+    pieceType: "bracelet",
+    material: "sterling silver",
+    lengthCm: 19,
+  });
 });
 
 test("searches by name, category, scent and inclusive price", () => {
@@ -75,5 +124,8 @@ test("filters by each scent or price boundary and applies both bounds", () => {
     }).map((product) => product.name),
     ["Cedar Dusk"],
   );
-  assert.deepEqual(searchProducts({ minPricePence: 5501 }), []);
+  assert.deepEqual(
+    searchProducts({ category: "perfume", minPricePence: 5501 }),
+    [],
+  );
 });

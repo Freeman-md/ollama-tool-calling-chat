@@ -1,6 +1,6 @@
 # Ollama Tool Calling Chat
 
-A minimal Next.js App Router chat that talks to a local Ollama model. The server offers `list_products`, `search_products`, and `get_product_by_id`, validating tool arguments with Zod. The product catalog contains fictional perfumes, shown as cards with generated product photos when a search finds matches. Sample descriptions, bottle sizes, and availability are fictional.
+A minimal Next.js App Router chat that talks to a local Ollama model. The server offers `list_products`, `search_products`, and `get_product_by_id`, validating tool arguments with Zod. The fictional catalog contains perfumes, watches, and jewellery, shown as cards with generated product photos when a search finds matches. Product details and availability are fictional.
 
 ## Prerequisites
 
@@ -71,6 +71,8 @@ What woody fragrances do you have?
 The assistant can search the catalog, show matching products below its reply, and highlight its recommendations. Highlights are limited to products in both the latest search and the displayed cards.
 
 ### Product catalog conversation
+
+With `qwen3.5:9b`, asking for an in-stock watch under £100 returned Harbour Classic at £89 with a recommended card. A follow-up confirmed its 38 mm case. Switching to jewellery showed Sun Disc Necklace and Silver Link Bracelet with their catalog details; asking for all watches showed both watch cards.
 
 A browser conversation with local `qwen3.5:9b` produced these results:
 

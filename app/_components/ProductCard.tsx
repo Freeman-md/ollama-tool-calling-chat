@@ -17,8 +17,18 @@ export function ProductCard({
     style: "currency",
     currency: "GBP",
   }).format(product.pricePence / 100);
-  const notes = product.details.notes;
-  const notesText = notes.join(" · ");
+  let detailsText: string;
+  switch (product.category) {
+    case "perfume":
+      detailsText = product.details.notes.join(" · ");
+      break;
+    case "watch":
+      detailsText = `${product.details.movement} movement · ${product.details.caseDiameterMm} mm case · ${product.details.strapMaterial} strap`;
+      break;
+    case "jewellery":
+      detailsText = `${product.details.pieceType} · ${product.details.material} · ${product.details.lengthCm} cm`;
+      break;
+  }
   const staggerStyle = { "--card-index": index } as CSSProperties;
   const isRecommended = recommendedProductIds.includes(product.id);
   const cardClass = isRecommended
@@ -40,7 +50,7 @@ export function ProductCard({
         )}
         <h3>{product.name}</h3>
         <span className="perfume-price">{price}</span>
-        <p>{notesText}</p>
+        <p>{detailsText}</p>
       </div>
     </article>
   );

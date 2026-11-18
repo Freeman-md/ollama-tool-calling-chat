@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import ollama from "ollama";
-import { products as catalogProducts } from "@/modules/catalog/perfumes";
+import { products as catalogProducts } from "@/modules/catalog/data";
 import { runChat } from "@/modules/chat/agent";
 import { ChatAgentError } from "@/modules/chat/errors";
 
@@ -79,12 +79,12 @@ test("terminal reply deduplicates multiple eligible IDs and ends without another
 test("a broader list cannot make a product outside the latest search eligible", async (t) => {
   const responses = [
     { message: toolMessage(search) },
-    { message: toolMessage(call("list_products", {})) },
+    { message: toolMessage(call("list_products", { limit: 7 })) },
     {
       message: toolMessage(
         call("reply_with_recommendations", {
           content: "My pick.",
-          recommendedProductIds: ["rose-veil", "cedar-dusk"],
+          recommendedProductIds: ["rose-veil", "harbour-classic", "cedar-dusk"],
         }),
       ),
     },
@@ -95,7 +95,15 @@ test("a broader list cannot make a product outside the latest search eligible", 
   ]);
   assert.deepEqual(
     result.products.map((product) => product.id),
-    ["cedar-dusk", "emberwood", "rose-veil"],
+    [
+      "cedar-dusk",
+      "emberwood",
+      "rose-veil",
+      "harbour-classic",
+      "slate-automatic",
+      "sun-disc-necklace",
+      "silver-link-bracelet",
+    ],
   );
   assert.deepEqual(result.recommendedProductIds, ["cedar-dusk"]);
 });

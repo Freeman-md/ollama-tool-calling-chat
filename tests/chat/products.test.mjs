@@ -73,6 +73,27 @@ test("product search translates strict and inclusive price limits", () => {
   }
 });
 
+test("search tool combines availability with category and budget", () => {
+  const result = dispatchToolCalls([
+    call("search_products", {
+      category: "watch",
+      underPriceGbp: 100,
+      availability: "in_stock",
+    }),
+  ]);
+  assert.deepEqual(
+    result.products.map((product) => product.id),
+    ["harbour-classic"],
+  );
+  assert.throws(
+    () =>
+      dispatchToolCalls([
+        call("search_products", { availability: "available" }),
+      ]),
+    { status: 400 },
+  );
+});
+
 test("a later empty product result clears earlier results in the same batch", () => {
   const result = dispatchToolCalls([
     call("list_products", {}),

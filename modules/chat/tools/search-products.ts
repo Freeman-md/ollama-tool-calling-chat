@@ -1,12 +1,13 @@
 import type { Tool } from "ollama";
 import { z } from "zod";
 import { searchProducts } from "@/modules/catalog/service";
+import { AvailabilitySchema } from "@/modules/catalog/types";
 import type { ToolRegistration, ToolResult } from "../types";
 import { ToolDispatchError } from "../errors";
 
 export const name = "search_products";
 export const description =
-  "Search products by name, category, scent family or price. Provide at least one filter; use names to find product IDs.";
+  "Search products by name, category, availability, scent family or price. Provide at least one filter; use names to find product IDs.";
 
 export const gbpAmountSchema = z
   .union([z.number(), z.string().regex(/^£?\d+(?:\.\d{1,2})?$/)])
@@ -35,7 +36,10 @@ export const schema = z
       .toLowerCase()
       .min(1)
       .optional()
-      .describe("Product category, such as perfume."),
+      .describe("Product category: perfume, watch or jewellery."),
+    availability: AvailabilitySchema.optional().describe(
+      "Availability: in_stock or out_of_stock.",
+    ),
     scentFamily: z.string().trim().toLowerCase().min(1).optional(),
     maxPriceGbp: gbpAmountSchema
       .optional()
@@ -93,6 +97,7 @@ export function prepare(arguments_: unknown): () => ToolResult {
     ...toCatalogFilters(result.data),
     name: result.data.name,
     category: result.data.category,
+    availability: result.data.availability,
   };
   return () => {
     try {

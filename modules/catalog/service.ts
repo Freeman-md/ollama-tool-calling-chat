@@ -1,4 +1,4 @@
-import { products } from "./perfumes";
+import { products } from "./data";
 import type { Product } from "./types";
 
 export function listProducts({ limit = 3 }: { limit?: number }): Product[] {
@@ -9,10 +9,18 @@ export function searchProducts(filters: {
   name?: string;
   category?: string;
   scentFamily?: string;
+  availability?: Product["availability"];
   minPricePence?: number;
   maxPricePence?: number;
 }): Product[] {
-  const { name, category, scentFamily, minPricePence, maxPricePence } = filters;
+  const {
+    name,
+    category,
+    scentFamily,
+    availability,
+    minPricePence,
+    maxPricePence,
+  } = filters;
 
   return products.filter((product) => {
     const matchesName =
@@ -21,6 +29,8 @@ export function searchProducts(filters: {
     const matchesCategory =
       category === undefined ||
       product.category === category.trim().toLowerCase();
+    const matchesAvailability =
+      availability === undefined || product.availability === availability;
     const matchesScent =
       scentFamily === undefined ||
       (product.category === "perfume" &&
@@ -31,7 +41,13 @@ export function searchProducts(filters: {
       maxPricePence === undefined || product.pricePence <= maxPricePence;
     const matchesPrice = matchesMinimumPrice && matchesMaximumPrice;
 
-    return matchesName && matchesCategory && matchesScent && matchesPrice;
+    return (
+      matchesName &&
+      matchesCategory &&
+      matchesAvailability &&
+      matchesScent &&
+      matchesPrice
+    );
   });
 }
 
