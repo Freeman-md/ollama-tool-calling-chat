@@ -4,6 +4,7 @@ import { ProductCard } from "./ProductCard";
 
 export function ChatMessage({ message }: { message: DisplayMessage }) {
   const products = message.products ?? [];
+  const recommendedProductIds = message.recommendedProductIds ?? [];
   const hasProducts = products.length > 0;
   const messageClass = `message ${message.role}`;
 
@@ -35,7 +36,12 @@ export function ChatMessage({ message }: { message: DisplayMessage }) {
               tabIndex={0}
             >
               {products.map((product, index) => (
-                <ProductCard key={product.id} product={product} index={index} />
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  index={index}
+                  recommendedProductIds={recommendedProductIds}
+                />
               ))}
             </div>
           </section>

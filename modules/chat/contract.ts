@@ -15,6 +15,7 @@ export const ChatSuccessResponseSchema = z.object({
   toolNames: z.array(z.string()).optional(),
   toolName: z.string().optional(),
   products: z.array(ProductSchema).optional(),
+  recommendedProductIds: z.array(z.string()).optional(),
 });
 
 export const ChatErrorResponseSchema = z.object({

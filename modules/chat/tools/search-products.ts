@@ -97,7 +97,11 @@ export function prepare(arguments_: unknown): () => ToolResult {
   return () => {
     try {
       const products = searchProducts(filters);
-      return { content: JSON.stringify(products), products };
+      return {
+        content: JSON.stringify(products),
+        products,
+        eligibleProducts: products,
+      };
     } catch {
       throw new ToolDispatchError(
         "Couldn’t check the product catalog. Try again.",

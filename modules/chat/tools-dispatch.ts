@@ -25,6 +25,7 @@ export function dispatchToolCalls(
   toolNames: string[];
   toolResults: Message[];
   products?: Product[];
+  eligibleProducts?: Product[];
 } {
   const preparedCalls = toolCalls.map((toolCall) => {
     const name = toolCall.function.name;
@@ -40,9 +41,12 @@ export function dispatchToolCalls(
   });
 
   let products: Product[] | undefined;
+  let eligibleProducts: Product[] | undefined;
   const toolResults: Message[] = preparedCalls.map(({ name, execute }) => {
     const result = execute();
     products = result.products;
+    if (result.eligibleProducts !== undefined)
+      eligibleProducts = result.eligibleProducts;
     return { role: "tool", tool_name: name, content: result.content };
   });
 
@@ -50,5 +54,6 @@ export function dispatchToolCalls(
     toolNames: preparedCalls.map(({ name }) => name),
     toolResults,
     ...(products === undefined ? {} : { products }),
+    ...(eligibleProducts === undefined ? {} : { eligibleProducts }),
   };
 }

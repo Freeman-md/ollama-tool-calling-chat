@@ -68,7 +68,7 @@ For a tool call, try:
 What woody fragrances do you have?
 ```
 
-The assistant can search the catalog and show matching products below its reply.
+The assistant can search the catalog, show matching products below its reply, and highlight its recommendations. Highlights are limited to products in both the latest search and the displayed cards.
 
 ### Product catalog conversation
 

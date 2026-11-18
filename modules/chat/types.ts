@@ -13,7 +13,11 @@ export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 export type ChatSuccessResponse = z.infer<typeof ChatSuccessResponseSchema>;
 export type ChatErrorResponse = z.infer<typeof ChatErrorResponseSchema>;
 
-export type ToolResult = { content: string; products: Product[] };
+export type ToolResult = {
+  content: string;
+  products: Product[];
+  eligibleProducts?: Product[];
+};
 export type ToolRegistration = {
   definition: Tool;
   prepare(arguments_: unknown): () => ToolResult;

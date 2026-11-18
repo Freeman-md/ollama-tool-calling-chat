@@ -6,6 +6,7 @@ export type DisplayMessage = ChatMessage & {
   id: number;
   toolNames?: string[];
   products?: ChatSuccessResponse["products"];
+  recommendedProductIds?: ChatSuccessResponse["recommendedProductIds"];
 };
 
 export function useChat() {
@@ -64,6 +65,7 @@ export function useChat() {
           content: result.content,
           toolNames,
           products: result.products,
+          recommendedProductIds: result.recommendedProductIds,
         },
       ]);
     } catch (caught) {
