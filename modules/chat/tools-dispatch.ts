@@ -1,6 +1,6 @@
 import type { Message, ToolCall } from "ollama";
 import type { Product } from "@/modules/catalog/types";
-import type { ToolRegistration } from "./types";
+import type { ChatSuccessResponse, ToolRegistration } from "./types";
 import { ToolDispatchError } from "./errors";
 import * as listProducts from "./tools/list-products";
 import * as searchProducts from "./tools/search-products";
@@ -26,6 +26,7 @@ export function dispatchToolCalls(
   toolResults: Message[];
   products?: Product[];
   eligibleProducts?: Product[];
+  productView?: ChatSuccessResponse["productView"];
 } {
   const preparedCalls = toolCalls.map((toolCall) => {
     const name = toolCall.function.name;
@@ -42,9 +43,11 @@ export function dispatchToolCalls(
 
   let products: Product[] | undefined;
   let eligibleProducts: Product[] | undefined;
+  let productView: ChatSuccessResponse["productView"];
   const toolResults: Message[] = preparedCalls.map(({ name, execute }) => {
     const result = execute();
     products = result.products;
+    productView = result.productView ?? "compact";
     if (result.eligibleProducts !== undefined)
       eligibleProducts = result.eligibleProducts;
     return { role: "tool", tool_name: name, content: result.content };
@@ -53,7 +56,7 @@ export function dispatchToolCalls(
   return {
     toolNames: preparedCalls.map(({ name }) => name),
     toolResults,
-    ...(products === undefined ? {} : { products }),
+    ...(products === undefined ? {} : { products, productView }),
     ...(eligibleProducts === undefined ? {} : { eligibleProducts }),
   };
 }

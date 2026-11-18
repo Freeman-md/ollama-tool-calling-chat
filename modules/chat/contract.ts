@@ -10,11 +10,14 @@ export const ChatRequestSchema = z.object({
   messages: z.array(ChatMessageSchema).min(1),
 });
 
+export const ProductViewSchema = z.enum(["compact", "detailed"]);
+
 export const ChatSuccessResponseSchema = z.object({
   content: z.string(),
   toolNames: z.array(z.string()).optional(),
   toolName: z.string().optional(),
   products: z.array(ProductSchema).optional(),
+  productView: ProductViewSchema.optional(),
   recommendedProductIds: z.array(z.string()).optional(),
 });
 

@@ -137,6 +137,20 @@ textarea {
   margin: 0;
   white-space: pre-wrap;
 }
+.assistant-content p + p,
+.assistant-content p + ul,
+.assistant-content p + ol,
+.assistant-content ul + p,
+.assistant-content ol + p {
+  margin-top: 10px;
+}
+.assistant-content ul,
+.assistant-content ol {
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 0;
+  padding-left: 24px;
+}
 .message.user {
   justify-content: flex-end;
   animation: message-rise 120ms ease-out both;

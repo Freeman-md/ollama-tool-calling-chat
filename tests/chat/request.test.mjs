@@ -11,6 +11,7 @@ test("sends validated history and returns the validated chat response", async (t
       toolNames: ["list_products"],
       products: [],
       recommendedProductIds: [],
+      productView: "detailed",
     }),
   );
   assert.deepEqual(await requestChat(messages), {
@@ -18,6 +19,7 @@ test("sends validated history and returns the validated chat response", async (t
     toolNames: ["list_products"],
     products: [],
     recommendedProductIds: [],
+    productView: "detailed",
   });
   assert.equal(fetch.mock.calls[0].arguments[0], "/api/chat");
   assert.deepEqual(JSON.parse(fetch.mock.calls[0].arguments[1].body), {

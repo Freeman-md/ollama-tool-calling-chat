@@ -10,6 +10,12 @@ export const description =
 
 export const schema = z.object({
   id: z.string().trim().min(1).describe("Exact catalog product ID."),
+  view: z
+    .enum(["compact", "detailed"])
+    .optional()
+    .describe(
+      "Use detailed when the shopper asks for more product information; use compact for availability alone. Defaults to compact.",
+    ),
 });
 
 export const definition: Tool = {
@@ -33,6 +39,7 @@ export function prepare(arguments_: unknown): () => ToolResult {
       return {
         content: JSON.stringify(product),
         products: product ? [product] : [],
+        productView: result.data.view ?? "compact",
       };
     } catch {
       throw new ToolDispatchError(

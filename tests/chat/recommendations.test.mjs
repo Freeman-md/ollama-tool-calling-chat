@@ -148,6 +148,31 @@ test("allows an explicitly empty recommendation selection", async (t) => {
   assert.deepEqual(result.recommendedProductIds, []);
 });
 
+test("terminal reply preserves the detailed view of the latest product", async (t) => {
+  const responses = [
+    { message: toolMessage(search) },
+    {
+      message: toolMessage(
+        call("get_product_by_id", { id: "cedar-dusk", view: "detailed" }),
+      ),
+    },
+    {
+      message: toolMessage(
+        call("reply_with_recommendations", {
+          content: "Cedar Dusk.",
+          recommendedProductIds: ["cedar-dusk"],
+        }),
+      ),
+    },
+  ];
+  t.mock.method(ollama, "chat", async () => responses.shift());
+  const result = await runChat([
+    { role: "user", content: "Recommend a woody perfume and tell me more." },
+  ]);
+  assert.equal(result.productView, "detailed");
+  assert.deepEqual(result.recommendedProductIds, ["cedar-dusk"]);
+});
+
 test("listing products alone does not enable the terminal tool", async (t) => {
   const requests = [];
   const responses = [

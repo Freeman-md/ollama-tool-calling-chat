@@ -62,6 +62,37 @@ test("handles multiple tool rounds and preserves execution order", async (t) => 
   assert.equal(result.products[0].id, "cedar-dusk");
 });
 
+test("carries the requested detail view with the latest product result", async (t) => {
+  const responses = [
+    {
+      message: assistantToolMessage(
+        call("get_product_by_id", { id: "cedar-dusk", view: "detailed" }),
+      ),
+    },
+    { message: { role: "assistant", content: "Here are the details." } },
+  ];
+  const chat = t.mock.method(ollama, "chat", async () => responses.shift());
+  const detailed = await runChat([
+    { role: "user", content: "Tell me more about Cedar Dusk." },
+  ]);
+  assert.equal(detailed.productView, "detailed");
+  assert.equal(detailed.products[0].id, "cedar-dusk");
+
+  const nextResponses = [
+    {
+      message: assistantToolMessage(
+        call("get_product_by_id", { id: "cedar-dusk", view: "detailed" }),
+        call("search_products", { name: "rose" }),
+      ),
+    },
+    { message: { role: "assistant", content: "Here is Rose Veil." } },
+  ];
+  chat.mock.mockImplementation(async () => nextResponses.shift());
+  const compact = await runChat([{ role: "user", content: "Find Rose Veil." }]);
+  assert.equal(compact.productView, "compact");
+  assert.equal(compact.products[0].id, "rose-veil");
+});
+
 test("returns a clear error when Ollama requests a fourth tool round", async (t) => {
   const chatSpy = t.mock.method(ollama, "chat", async () => ({
     message: assistantToolMessage(call("list_products", {})),

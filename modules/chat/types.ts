@@ -17,6 +17,7 @@ export type ToolResult = {
   content: string;
   products: Product[];
   eligibleProducts?: Product[];
+  productView?: ChatSuccessResponse["productView"];
 };
 export type ToolRegistration = {
   definition: Tool;

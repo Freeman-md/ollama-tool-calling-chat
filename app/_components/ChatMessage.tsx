@@ -1,3 +1,4 @@
+import Markdown from "react-markdown";
 import type { DisplayMessage } from "@/app/_hooks/use-chat";
 import { AssistantActivity } from "./AssistantActivity";
 import { ProductCard } from "./ProductCard";
@@ -24,7 +25,9 @@ export function ChatMessage({ message }: { message: DisplayMessage }) {
       <div className="assistant-body">
         <div className="assistant-reply">
           <AssistantActivity toolNames={message.toolNames} />
-          <p>{message.content}</p>
+          <div className="assistant-content">
+            <Markdown skipHtml>{message.content}</Markdown>
+          </div>
         </div>
         {hasProducts && (
           <section className="catalog-matches" aria-label="Products">
@@ -39,6 +42,7 @@ export function ChatMessage({ message }: { message: DisplayMessage }) {
                 <ProductCard
                   key={product.id}
                   product={product}
+                  view={message.productView ?? "compact"}
                   index={index}
                   recommendedProductIds={recommendedProductIds}
                 />

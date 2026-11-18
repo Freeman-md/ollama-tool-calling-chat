@@ -33,6 +33,7 @@ test("returns validated product records including availability and details", asy
   const body = await response.json();
   assert.equal(response.status, 200);
   assert.equal(body.products[0].availability, "in_stock");
+  assert.equal(body.productView, "compact");
   assert.equal(body.products[0].details.bottleSizeMl, 50);
   assert.equal(body.products[0].image.src, "/catalog/perfumes/cedar-dusk.webp");
 });
