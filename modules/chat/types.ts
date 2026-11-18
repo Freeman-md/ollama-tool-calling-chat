@@ -6,12 +6,16 @@ import type {
   ChatMessageSchema,
   ChatRequestSchema,
   ChatSuccessResponseSchema,
+  ActivityLabelSchema,
+  ChatStreamEventSchema,
 } from "./contract";
 
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 export type ChatSuccessResponse = z.infer<typeof ChatSuccessResponseSchema>;
 export type ChatErrorResponse = z.infer<typeof ChatErrorResponseSchema>;
+export type ActivityLabel = z.infer<typeof ActivityLabelSchema>;
+export type ChatStreamEvent = z.infer<typeof ChatStreamEventSchema>;
 
 export type ToolResult = {
   content: string;

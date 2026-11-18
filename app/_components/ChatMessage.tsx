@@ -24,10 +24,10 @@ export function ChatMessage({ message }: { message: DisplayMessage }) {
       </span>
       <div className="assistant-body">
         <div className="assistant-reply">
-          <AssistantActivity toolNames={message.toolNames} />
           <div className="assistant-content">
             <Markdown skipHtml>{message.content}</Markdown>
           </div>
+          <AssistantActivity steps={message.activity} />
         </div>
         {hasProducts && (
           <section className="catalog-matches" aria-label="Products">

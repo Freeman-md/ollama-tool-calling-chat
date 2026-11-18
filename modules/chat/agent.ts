@@ -1,5 +1,5 @@
 import ollama, { type Message } from "ollama";
-import type { ChatMessage, ChatSuccessResponse } from "./types";
+import type { ActivityLabel, ChatMessage, ChatSuccessResponse } from "./types";
 import type { Product } from "@/modules/catalog/types";
 import { CHAT_MODEL, MAX_TOOL_ROUNDS } from "@/lib/config";
 import { ChatAgentError, ToolDispatchError } from "./errors";
@@ -29,6 +29,7 @@ function buildResponse({
 
 export async function runChat(
   messages: ChatMessage[],
+  onActivity?: (label: ActivityLabel) => void,
 ): Promise<ChatSuccessResponse> {
   const conversation: Message[] = [assistantInstructions, ...messages];
   const executedToolNames: string[] = [];
@@ -89,7 +90,7 @@ export async function runChat(
         products: latestProducts,
         eligibleProducts: latestEligibleProducts,
         productView: latestProductView,
-      } = dispatchToolCalls(toolCalls);
+      } = dispatchToolCalls(toolCalls, undefined, onActivity);
       if (latestProducts !== undefined) {
         products = latestProducts;
         productView = latestProductView;
@@ -98,7 +99,7 @@ export async function runChat(
       if (latestEligibleProducts !== undefined) {
         eligibleProducts = latestEligibleProducts;
       }
-      
+
       conversation.push(response.message, ...toolResults);
       executedToolNames.push(...toolNames);
       toolRounds += 1;

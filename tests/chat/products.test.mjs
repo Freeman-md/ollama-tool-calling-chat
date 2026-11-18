@@ -129,6 +129,7 @@ test("later empty products clear previous cards across rounds", async (t) => {
 
 test("validates a batch before executing any product tool", (t) => {
   const execute = t.mock.fn(() => ({ content: "[]", products: [] }));
+  const onActivity = t.mock.fn();
   const registry = {
     list_products: { definition: listTool.definition, prepare: () => execute },
     search_products: searchTool,
@@ -147,12 +148,31 @@ test("validates a batch before executing any product tool", (t) => {
       dispatchToolCalls(
         [call("list_products", {}), call("search_products", {})],
         registry,
+        onActivity,
       ),
     { status: 400 },
   );
   assert.equal(execute.mock.callCount(), 0);
+  assert.equal(onActivity.mock.callCount(), 0);
   assert.throws(
     () => dispatchToolCalls([call("get_product_by_id", { id: "" })]),
     { status: 400 },
   );
+});
+
+test("emits each activity immediately before its prepared tool executes", () => {
+  const events = [];
+  const registry = {
+    list_products: {
+      definition: listTool.definition,
+      prepare: () => () => {
+        events.push("executed");
+        return { content: "[]", products: [] };
+      },
+    },
+  };
+  dispatchToolCalls([call("list_products", {})], registry, (label) =>
+    events.push(label),
+  );
+  assert.deepEqual(events, ["Browsing the catalog…", "executed"]);
 });

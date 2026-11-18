@@ -1,6 +1,10 @@
 import type { Message, ToolCall } from "ollama";
 import type { Product } from "@/modules/catalog/types";
-import type { ChatSuccessResponse, ToolRegistration } from "./types";
+import type {
+  ActivityLabel,
+  ChatSuccessResponse,
+  ToolRegistration,
+} from "./types";
 import { ToolDispatchError } from "./errors";
 import * as listProducts from "./tools/list-products";
 import * as searchProducts from "./tools/search-products";
@@ -18,9 +22,16 @@ export const ollamaTools = Object.values(toolRegistry).map(
   (tool) => tool.definition,
 );
 
+const activityLabels: Record<string, ActivityLabel> = {
+  [listProducts.name]: "Browsing the catalog…",
+  [searchProducts.name]: "Searching products…",
+  [getProductById.name]: "Checking product details…",
+};
+
 export function dispatchToolCalls(
   toolCalls: ToolCall[],
   registry: ToolRegistry = toolRegistry,
+  onActivity?: (label: ActivityLabel) => void,
 ): {
   toolNames: string[];
   toolResults: Message[];
@@ -45,6 +56,10 @@ export function dispatchToolCalls(
   let eligibleProducts: Product[] | undefined;
   let productView: ChatSuccessResponse["productView"];
   const toolResults: Message[] = preparedCalls.map(({ name, execute }) => {
+    const label = activityLabels[name];
+    if (label) {
+      onActivity?.(label);
+    }
     const result = execute();
     products = result.products;
     productView = result.productView ?? "compact";

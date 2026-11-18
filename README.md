@@ -70,6 +70,8 @@ What woody fragrances do you have?
 
 The assistant can search the catalog, show matching products below its reply, and highlight its recommendations. Cards show a compact summary by default; a detailed product lookup can show the description and full specifications. Highlights are limited to products in both the latest search and the displayed cards.
 
+Valid `POST /api/chat` requests stream newline-delimited JSON: `activity` events carry a shopper-facing label, followed by either a `complete` event with the reply and product cards or an `error` event. Invalid requests still return a JSON error before streaming. Completed activity is available below the reply in a collapsed section.
+
 ### Product catalog conversation
 
 With `qwen3.5:9b`, asking for an in-stock watch under £100 returned Harbour Classic at £89 with a recommended card. A follow-up confirmed its 38 mm case. Switching to jewellery showed Sun Disc Necklace and Silver Link Bracelet with their catalog details; asking for all watches showed both watch cards.

@@ -25,3 +25,28 @@ test("keeps shopper messages as escaped plain text", () => {
   assert.match(html, /&lt;script&gt;unsafe&lt;\/script&gt;/);
   assert.doesNotMatch(html, /<strong>|<ul>/);
 });
+
+test("shows completed activity below the reply in a collapsed disclosure", () => {
+  const html = renderToStaticMarkup(
+    createElement(ChatMessage, {
+      message: {
+        id: 1,
+        role: "assistant",
+        content: "Found it.",
+        activity: ["Searching products…", "Checking product details…"],
+      },
+    }),
+  );
+  assert.match(
+    html,
+    /Found it\.[\s\S]*<details class="activity-details"><summary>Activity<\/summary>/,
+  );
+  assert.match(html, /Searching products…[\s\S]*Checking product details…/);
+  assert.doesNotMatch(html, /<details[^>]*\sopen/);
+  const plain = renderToStaticMarkup(
+    createElement(ChatMessage, {
+      message: { id: 2, role: "assistant", content: "Hello." },
+    }),
+  );
+  assert.doesNotMatch(plain, /<details/);
+});

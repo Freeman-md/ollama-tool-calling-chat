@@ -1,12 +1,12 @@
 import {
   ChatErrorResponseSchema,
   ChatRequestSchema,
-  ChatSuccessResponseSchema,
+  ChatStreamEventSchema,
 } from "@/modules/chat/contract";
 import type {
   ChatErrorResponse,
   ChatRequest,
-  ChatSuccessResponse,
+  ChatStreamEvent,
 } from "@/modules/chat/types";
 import { ChatAgentError } from "@/modules/chat/errors";
 import { runChat } from "@/modules/chat/agent";
@@ -16,11 +16,6 @@ function errorResponse(message: string, status: number) {
     error: message,
   });
   return Response.json(body, { status });
-}
-
-function successResponse(result: ChatSuccessResponse) {
-  const body: ChatSuccessResponse = ChatSuccessResponseSchema.parse(result);
-  return Response.json(body);
 }
 
 export async function POST(request: Request) {
@@ -37,17 +32,45 @@ export async function POST(request: Request) {
   }
 
   const chatRequest: ChatRequest = parsedRequest.data;
+  const encoder = new TextEncoder();
+  let cancelled = false;
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      function send(event: ChatStreamEvent) {
+        if (!cancelled) {
+          const safeEvent = ChatStreamEventSchema.parse(event);
+          controller.enqueue(encoder.encode(`${JSON.stringify(safeEvent)}\n`));
+        }
+      }
 
-  try {
-    const result = await runChat(chatRequest.messages);
-    return successResponse(result);
-  } catch (error) {
-    if (error instanceof ChatAgentError) {
-      return errorResponse(error.message, error.status);
-    }
-    return errorResponse(
-      "Unable to reach local Ollama or generate a reply.",
-      502,
-    );
-  }
+      void (async () => {
+        try {
+          const result = await runChat(chatRequest.messages, (label) => {
+            send({ type: "activity", label });
+          });
+          send({ type: "complete", data: result });
+        } catch (error) {
+          const message =
+            error instanceof ChatAgentError
+              ? error.message
+              : "Unable to reach local Ollama or generate a reply.";
+          send({ type: "error", error: message });
+        } finally {
+          if (!cancelled) {
+            controller.close();
+          }
+        }
+      })();
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
 }

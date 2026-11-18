@@ -24,3 +24,18 @@ export const ChatSuccessResponseSchema = z.object({
 export const ChatErrorResponseSchema = z.object({
   error: z.string(),
 });
+
+export const ActivityLabelSchema = z.enum([
+  "Browsing the catalog…",
+  "Searching products…",
+  "Checking product details…",
+]);
+
+export const ChatStreamEventSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("activity"), label: ActivityLabelSchema }),
+  z.object({
+    type: z.literal("complete"),
+    data: ChatSuccessResponseSchema.omit({ toolNames: true, toolName: true }),
+  }),
+  z.object({ type: z.literal("error"), error: z.string() }),
+]);

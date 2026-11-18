@@ -1,10 +1,14 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import type { ChatMessage, ChatSuccessResponse } from "@/modules/chat/types";
+import type {
+  ActivityLabel,
+  ChatMessage,
+  ChatSuccessResponse,
+} from "@/modules/chat/types";
 import { requestChat } from "@/app/_lib/request";
 
 export type DisplayMessage = ChatMessage & {
   id: number;
-  toolNames?: string[];
+  activity?: ActivityLabel[];
   products?: ChatSuccessResponse["products"];
   productView?: ChatSuccessResponse["productView"];
   recommendedProductIds?: ChatSuccessResponse["recommendedProductIds"];
@@ -15,6 +19,7 @@ export function useChat() {
   const [draft, setDraft] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activity, setActivity] = useState<ActivityLabel[]>([]);
   const shouldFollow = useRef(false);
 
   useLayoutEffect(() => {
@@ -46,12 +51,15 @@ export function useChat() {
     setMessages((current) => [...current, userMessage]);
     setDraft("");
     setError(null);
+    setActivity([]);
     setIsPending(true);
 
     try {
-      const result = await requestChat(conversation);
-      let toolNames = result.toolNames;
-      if (!toolNames?.length && result.toolName) toolNames = [result.toolName];
+      const steps: ActivityLabel[] = [];
+      const result = await requestChat(conversation, (label) => {
+        steps.push(label);
+        setActivity([...steps]);
+      });
 
       const distanceFromBottom =
         document.documentElement.scrollHeight -
@@ -64,7 +72,7 @@ export function useChat() {
           id: Date.now(),
           role: "assistant",
           content: result.content,
-          toolNames,
+          activity: steps,
           products: result.products,
           productView: result.productView,
           recommendedProductIds: result.recommendedProductIds,
@@ -78,8 +86,9 @@ export function useChat() {
       );
     } finally {
       setIsPending(false);
+      setActivity([]);
     }
   }
 
-  return { messages, draft, setDraft, isPending, error, sendMessage };
+  return { messages, draft, setDraft, isPending, activity, error, sendMessage };
 }
