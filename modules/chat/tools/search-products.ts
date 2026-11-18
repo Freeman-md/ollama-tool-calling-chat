@@ -5,6 +5,28 @@ import { AvailabilitySchema } from "@/modules/catalog/types";
 import type { ToolRegistration, ToolResult } from "../types";
 import { ToolDispatchError } from "../errors";
 
+function toCatalogFilters({
+  scentFamily,
+  maxPriceGbp,
+  underPriceGbp,
+  overPriceGbp,
+}: z.output<typeof schema>): Parameters<typeof searchProducts>[0] {
+  const filters: Parameters<typeof searchProducts>[0] = { scentFamily };
+  if (maxPriceGbp !== undefined)
+    filters.maxPricePence = Math.round(maxPriceGbp * 100);
+  if (underPriceGbp !== undefined) {
+    const strictMaximum = Math.round(underPriceGbp * 100) - 1;
+    if (
+      filters.maxPricePence === undefined ||
+      strictMaximum < filters.maxPricePence
+    )
+      filters.maxPricePence = strictMaximum;
+  }
+  if (overPriceGbp !== undefined)
+    filters.minPricePence = Math.round(overPriceGbp * 100) + 1;
+  return filters;
+}
+
 export const name = "search_products";
 export const description =
   "Search products by name, category, availability, scent family or price. Provide at least one filter; use names to find product IDs.";
@@ -66,28 +88,6 @@ export const definition: Tool = {
     }) as Tool["function"]["parameters"],
   },
 };
-
-function toCatalogFilters({
-  scentFamily,
-  maxPriceGbp,
-  underPriceGbp,
-  overPriceGbp,
-}: z.output<typeof schema>): Parameters<typeof searchProducts>[0] {
-  const filters: Parameters<typeof searchProducts>[0] = { scentFamily };
-  if (maxPriceGbp !== undefined)
-    filters.maxPricePence = Math.round(maxPriceGbp * 100);
-  if (underPriceGbp !== undefined) {
-    const strictMaximum = Math.round(underPriceGbp * 100) - 1;
-    if (
-      filters.maxPricePence === undefined ||
-      strictMaximum < filters.maxPricePence
-    )
-      filters.maxPricePence = strictMaximum;
-  }
-  if (overPriceGbp !== undefined)
-    filters.minPricePence = Math.round(overPriceGbp * 100) + 1;
-  return filters;
-}
 
 export function prepare(arguments_: unknown): () => ToolResult {
   const result = schema.safeParse(arguments_);
