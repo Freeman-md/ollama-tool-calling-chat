@@ -11,6 +11,7 @@
 
 - Inspect the relevant code, tests, and existing patterns before changing anything. Make the smallest coherent change and avoid speculative abstractions, dependencies, and unrelated cleanup.
 - Give business conditions meaningful names and use straightforward control flow. For example, `searchPerfumes` names its conditions `matchesScent` and `matchesPrice`.
+- Prepare display values and define named event handlers before JSX. Collection mapping and simple conditional rendering may remain in JSX.
 - Reuse existing code where it fits instead of introducing parallel implementations.
 - This is a Next.js App Router chat backed by local Ollama. Keep model behavior general: let the model decide when an available tool helps, rather than hardcoding keyword or tool-specific routing.
 - Preserve existing request and response contracts, errors, and tool behavior unless the task explicitly changes them. Use the shared Zod schemas for validation and tool parameter definitions; validate a batch of tool calls before executing any of them.

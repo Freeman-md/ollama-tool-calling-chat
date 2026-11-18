@@ -5,6 +5,7 @@ import nextTypescript from "eslint-config-next/typescript";
 export default defineConfig([
   ...nextVitals,
   ...nextTypescript,
+  { rules: { "no-nested-ternary": "error" } },
   {
     // The home link reloads the page and resets the in-memory chat.
     files: ["app/page.tsx"],
