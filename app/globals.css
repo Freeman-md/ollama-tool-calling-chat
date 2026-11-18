@@ -151,6 +151,7 @@ textarea {
   padding: 8px 0;
 }
 .assistant-body {
+  flex: 1;
   min-width: 0;
 }
 .message.assistant:not(.pending-message) > .assistant-mark,
@@ -191,7 +192,16 @@ textarea {
 .catalog-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 200px));
+  grid-auto-flow: column;
+  grid-auto-columns: 200px;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 4px;
+}
+.catalog-grid:focus-visible {
+  outline: 2px solid #56514a;
+  outline-offset: 3px;
 }
 .perfume-card {
   animation: message-rise 180ms ease-out both;

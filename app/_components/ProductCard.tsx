@@ -1,15 +1,15 @@
 import Image from "next/image";
 import type { CSSProperties } from "react";
-import type { Perfume, Product } from "@/modules/catalog/types";
+import type { Product } from "@/modules/catalog/types";
 
-type ProductCardProps = { product: Product | Perfume; index: number };
+type ProductCardProps = { product: Product; index: number };
 
 export function ProductCard({ product, index }: ProductCardProps) {
   const price = new Intl.NumberFormat("en-GB", {
     style: "currency",
     currency: "GBP",
   }).format(product.pricePence / 100);
-  const notes = "category" in product ? product.details.notes : product.notes;
+  const notes = product.details.notes;
   const notesText = notes.join(" · ");
   const staggerStyle = { "--card-index": index } as CSSProperties;
 

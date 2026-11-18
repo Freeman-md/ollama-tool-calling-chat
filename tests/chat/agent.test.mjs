@@ -4,177 +4,75 @@ import ollama from "ollama";
 import { ChatAgentError } from "@/modules/chat/errors";
 import { runChat } from "@/modules/chat/agent";
 import { MAX_TOOL_ROUNDS } from "@/lib/config";
-import { conversions } from "@/modules/chat/tools/celsius-to-fahrenheit";
-import { searchPerfumes } from "@/modules/catalog/service";
 
-const perfumes = searchPerfumes({});
-
-const celsiusCall = (celsius) => ({
-  function: {
-    name: "celsius_to_fahrenheit",
-    arguments: { celsius },
-  },
+const call = (name, arguments_) => ({
+  function: { name, arguments: arguments_ },
 });
-
-const perfumeCall = (arguments_) => ({
-  function: { name: "search_perfumes", arguments: arguments_ },
-});
-
 const assistantToolMessage = (...toolCalls) => ({
   role: "assistant",
   content: "",
   tool_calls: toolCalls,
 });
 
-test("appends all results from a tool-call batch before the next Ollama call", async (t) => {
+test("appends all tool results in batch order and keeps the latest products", async (t) => {
   const requests = [];
-  const responses = [
-    { message: assistantToolMessage(celsiusCall(0), celsiusCall(20)) },
-    { message: { role: "assistant", content: "Both conversions are done." } },
+  const calls = [
+    call("list_products", { limit: 1 }),
+    call("get_product_by_id", { id: "rose-veil" }),
   ];
-  t.mock.method(ollama, "chat", async (request) => {
-    requests.push(request);
-    return responses.shift();
-  });
-
-  const result = await runChat([
-    { role: "user", content: "Convert 0°C and 20°C." },
-  ]);
-
-  assert.deepEqual(result, {
-    content: "Both conversions are done.",
-    toolNames: ["celsius_to_fahrenheit", "celsius_to_fahrenheit"],
-    toolName: "celsius_to_fahrenheit",
-  });
-  assert.deepEqual(requests[1].messages.slice(-3), [
-    assistantToolMessage(celsiusCall(0), celsiusCall(20)),
-    { role: "tool", tool_name: "celsius_to_fahrenheit", content: "32" },
-    { role: "tool", tool_name: "celsius_to_fahrenheit", content: "68" },
-  ]);
-});
-
-test("handles a second tool round and preserves execution order", async (t) => {
-  const requests = [];
   const responses = [
-    { message: assistantToolMessage(celsiusCall(20)) },
-    { message: assistantToolMessage(celsiusCall(0)) },
-    {
-      message: { role: "assistant", content: "20°C is 68°F and 0°C is 32°F." },
-    },
-  ];
-  t.mock.method(ollama, "chat", async (request) => {
-    requests.push(request);
-    return responses.shift();
-  });
-
-  const result = await runChat([
-    { role: "user", content: "Convert both temperatures." },
-  ]);
-
-  assert.deepEqual(result.toolNames, [
-    "celsius_to_fahrenheit",
-    "celsius_to_fahrenheit",
-  ]);
-  assert.equal(result.toolName, "celsius_to_fahrenheit");
-  assert.equal(result.content, "20°C is 68°F and 0°C is 32°F.");
-  assert.equal(requests.length, 3);
-  assert.deepEqual(requests[2].messages.slice(-2), [
-    assistantToolMessage(celsiusCall(0)),
-    { role: "tool", tool_name: "celsius_to_fahrenheit", content: "32" },
-  ]);
-});
-
-test("returns a clear error when Ollama requests a fourth tool round", async (t) => {
-  const chatSpy = t.mock.method(ollama, "chat", async () => ({
-    message: assistantToolMessage(celsiusCall(20)),
-  }));
-  const conversionSpy = t.mock.method(
-    conversions,
-    "celsiusToFahrenheit",
-    (celsius) => (celsius * 9) / 5 + 32,
-  );
-
-  await assert.rejects(
-    runChat([{ role: "user", content: "Keep converting." }]),
-    (error) =>
-      error instanceof ChatAgentError &&
-      error.status === 502 &&
-      error.message ===
-        `Ollama requested more than ${MAX_TOOL_ROUNDS} tool rounds.`,
-  );
-
-  assert.equal(chatSpy.mock.callCount(), MAX_TOOL_ROUNDS + 1);
-  assert.equal(conversionSpy.mock.callCount(), MAX_TOOL_ROUNDS);
-});
-
-test("returns perfume matches through the chat response and keeps them after a text-only tool", async (t) => {
-  const requests = [];
-  const responses = [
-    {
-      message: assistantToolMessage(
-        perfumeCall({ scentFamily: "woody", maxPriceGbp: 40 }),
-      ),
-    },
-    { message: assistantToolMessage(celsiusCall(20)) },
-    { message: { role: "assistant", content: "Cedar Dusk." } },
+    { message: assistantToolMessage(...calls) },
+    { message: { role: "assistant", content: "Here are the products." } },
   ];
   t.mock.method(ollama, "chat", async (request) => {
     requests.push({ ...request, messages: [...request.messages] });
     return responses.shift();
   });
 
-  const result = await runChat([
-    { role: "user", content: "Find a woody perfume." },
-  ]);
-  assert.deepEqual(result.perfumeMatches, [perfumes[0]]);
-  const { image, ...catalogDetails } = perfumes[0];
-  assert.ok(image.src);
-  assert.deepEqual(JSON.parse(requests[1].messages.at(-1).content), [
-    catalogDetails,
-  ]);
-  assert.deepEqual(result.toolNames, [
-    "search_perfumes",
-    "celsius_to_fahrenheit",
-  ]);
+  const result = await runChat([{ role: "user", content: "Show products." }]);
+  assert.deepEqual(result.toolNames, ["list_products", "get_product_by_id"]);
+  assert.equal(result.toolName, "list_products");
+  assert.deepEqual(
+    result.products.map((product) => product.id),
+    ["rose-veil"],
+  );
+  const history = requests[1].messages.slice(-3);
+  assert.deepEqual(history[0], assistantToolMessage(...calls));
+  assert.equal(history[1].tool_name, "list_products");
+  assert.equal(JSON.parse(history[1].content)[0].id, "cedar-dusk");
+  assert.equal(history[2].tool_name, "get_product_by_id");
+  assert.equal(JSON.parse(history[2].content).id, "rose-veil");
 });
 
-test("returns an empty perfume result and clears earlier matches across rounds", async (t) => {
+test("handles multiple tool rounds and preserves execution order", async (t) => {
   const responses = [
     {
-      message: assistantToolMessage(
-        perfumeCall({ scentFamily: "woody", maxPriceGbp: 40 }),
-      ),
+      message: assistantToolMessage(call("search_products", { name: "cedar" })),
     },
     {
       message: assistantToolMessage(
-        perfumeCall({ scentFamily: "woody", underPriceGbp: 40 }),
+        call("get_product_by_id", { id: "cedar-dusk" }),
       ),
     },
-    { message: { role: "assistant", content: "No matches." } },
+    { message: { role: "assistant", content: "Cedar Dusk is in stock." } },
   ];
   t.mock.method(ollama, "chat", async () => responses.shift());
-
-  const result = await runChat([
-    { role: "user", content: "Find a woody perfume." },
-  ]);
-  assert.deepEqual(result.perfumeMatches, []);
+  const result = await runChat([{ role: "user", content: "Find Cedar Dusk." }]);
+  assert.deepEqual(result.toolNames, ["search_products", "get_product_by_id"]);
+  assert.equal(result.products[0].id, "cedar-dusk");
 });
 
-test("keeps the latest perfume result within one tool batch", async (t) => {
-  const responses = [
-    {
-      message: assistantToolMessage(
-        perfumeCall({ scentFamily: "woody", maxPriceGbp: 40 }),
-        perfumeCall({ scentFamily: "woody", underPriceGbp: 40 }),
-        celsiusCall(20),
-      ),
-    },
-    { message: { role: "assistant", content: "No matches." } },
-  ];
-  t.mock.method(ollama, "chat", async () => responses.shift());
-
-  const result = await runChat([
-    { role: "user", content: "Find a woody perfume." },
-  ]);
-  assert.deepEqual(result.perfumeMatches, []);
+test("returns a clear error when Ollama requests a fourth tool round", async (t) => {
+  const chatSpy = t.mock.method(ollama, "chat", async () => ({
+    message: assistantToolMessage(call("list_products", {})),
+  }));
+  await assert.rejects(
+    runChat([{ role: "user", content: "Keep searching." }]),
+    (error) =>
+      error instanceof ChatAgentError &&
+      error.status === 502 &&
+      error.message ===
+        `Ollama requested more than ${MAX_TOOL_ROUNDS} tool rounds.`,
+  );
+  assert.equal(chatSpy.mock.callCount(), MAX_TOOL_ROUNDS + 1);
 });

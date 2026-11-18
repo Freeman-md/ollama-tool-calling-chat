@@ -1,14 +1,17 @@
 import type { Tool } from "ollama";
 import { z } from "zod";
 import { getProductById } from "@/modules/catalog/service";
+import type { ToolRegistration, ToolResult } from "../types";
 import { ToolDispatchError } from "../errors";
 
 export const name = "get_product_by_id";
 export const description =
   "Get product details and availability by catalog ID. Search by name first if the ID is unknown.";
+
 export const schema = z.object({
   id: z.string().trim().min(1).describe("Exact catalog product ID."),
 });
+
 export const definition: Tool = {
   type: "function",
   function: {
@@ -20,7 +23,7 @@ export const definition: Tool = {
   },
 };
 
-export function prepare(arguments_: unknown) {
+export function prepare(arguments_: unknown): () => ToolResult {
   const result = schema.safeParse(arguments_);
   if (!result.success)
     throw new ToolDispatchError("Provide a valid product ID.", 400);
@@ -39,3 +42,5 @@ export function prepare(arguments_: unknown) {
     }
   };
 }
+
+export const tool = { definition, prepare } satisfies ToolRegistration;

@@ -3,25 +3,17 @@ import test from "node:test";
 import ollama from "ollama";
 import { runChat } from "@/modules/chat/agent";
 import { dispatchToolCalls, ollamaTools } from "@/modules/chat/tools-dispatch";
+import { tool as listTool } from "@/modules/chat/tools/list-products";
+import { tool as searchTool } from "@/modules/chat/tools/search-products";
 
 const call = (name, arguments_) => ({
   function: { name, arguments: arguments_ },
 });
 
-test("advertises product tools while retaining legacy dispatch", () => {
+test("advertises the three product tools", () => {
   assert.deepEqual(
     ollamaTools.map((tool) => tool.function.name),
-    [
-      "celsius_to_fahrenheit",
-      "list_products",
-      "search_products",
-      "get_product_by_id",
-    ],
-  );
-  assert.equal(
-    dispatchToolCalls([call("search_perfumes", { scentFamily: "woody" })])
-      .perfumeMatches.length,
-    2,
+    ["list_products", "search_products", "get_product_by_id"],
   );
 });
 
@@ -56,10 +48,21 @@ test("lists, searches and fetches catalog products with their details", () => {
 test("product search translates strict and inclusive price limits", () => {
   for (const [filters, expected] of [
     [{ scentFamily: "woody", maxPriceGbp: 40 }, ["cedar-dusk"]],
+    [{ scentFamily: "woody", maxPriceGbp: "40" }, ["cedar-dusk"]],
     [{ scentFamily: "woody", maxPriceGbp: "£40" }, ["cedar-dusk"]],
     [{ scentFamily: "woody", underPriceGbp: 40 }, []],
     [{ scentFamily: "woody", underPriceGbp: "£40" }, []],
     [{ scentFamily: "woody", overPriceGbp: 40 }, ["emberwood"]],
+    [
+      {
+        scentFamily: "woody",
+        maxPriceGbp: 55,
+        underPriceGbp: 55,
+        overPriceGbp: 40,
+      },
+      [],
+    ],
+    [{ scentFamily: "woody", underPriceGbp: 0 }, []],
   ]) {
     assert.deepEqual(
       dispatchToolCalls([call("search_products", filters)]).products.map(
@@ -70,36 +73,22 @@ test("product search translates strict and inclusive price limits", () => {
   }
 });
 
-test("text-only tools retain the latest products", () => {
+test("a later empty product result clears earlier results in the same batch", () => {
   const result = dispatchToolCalls([
-    call("search_products", { name: "cedar" }),
-    call("celsius_to_fahrenheit", { celsius: 20 }),
-  ]);
-  assert.deepEqual(
-    result.products.map((product) => product.id),
-    ["cedar-dusk"],
-  );
-});
-
-test("empty product results replace legacy perfume matches", () => {
-  const result = dispatchToolCalls([
-    call("search_perfumes", { scentFamily: "woody" }),
+    call("list_products", {}),
     call("get_product_by_id", { id: "missing" }),
   ]);
   assert.deepEqual(result.products, []);
-  assert.equal(result.perfumeMatches, undefined);
+  assert.equal(result.toolResults.length, 2);
 });
 
-test("later empty products clear previous cards while text-only results leave them alone", async (t) => {
+test("later empty products clear previous cards across rounds", async (t) => {
   const responses = [
     {
       message: {
         role: "assistant",
         content: "",
-        tool_calls: [
-          call("list_products", {}),
-          call("celsius_to_fahrenheit", { celsius: 20 }),
-        ],
+        tool_calls: [call("list_products", {})],
       },
     },
     {
@@ -117,7 +106,12 @@ test("later empty products clear previous cards while text-only results leave th
   assert.equal(result.content, "Not found.");
 });
 
-test("validates a batch before executing any product tool", () => {
+test("validates a batch before executing any product tool", (t) => {
+  const execute = t.mock.fn(() => ({ content: "[]", products: [] }));
+  const registry = {
+    list_products: { definition: listTool.definition, prepare: () => execute },
+    search_products: searchTool,
+  };
   assert.throws(
     () =>
       dispatchToolCalls([call("search_products", { maxPriceGbp: "£1.001" })]),
@@ -129,12 +123,13 @@ test("validates a batch before executing any product tool", () => {
   );
   assert.throws(
     () =>
-      dispatchToolCalls([
-        call("list_products", {}),
-        call("search_products", {}),
-      ]),
+      dispatchToolCalls(
+        [call("list_products", {}), call("search_products", {})],
+        registry,
+      ),
     { status: 400 },
   );
+  assert.equal(execute.mock.callCount(), 0);
   assert.throws(
     () => dispatchToolCalls([call("get_product_by_id", { id: "" })]),
     { status: 400 },

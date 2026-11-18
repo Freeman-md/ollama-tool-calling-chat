@@ -1,6 +1,6 @@
 import ollama, { type Message } from "ollama";
 import type { ChatMessage, ChatSuccessResponse } from "./types";
-import type { Perfume, Product } from "@/modules/catalog/types";
+import type { Product } from "@/modules/catalog/types";
 import { CHAT_MODEL, MAX_TOOL_ROUNDS } from "@/lib/config";
 import { ChatAgentError, ToolDispatchError } from "./errors";
 import { dispatchToolCalls, ollamaTools } from "./tools-dispatch";
@@ -17,7 +17,6 @@ export async function runChat(
   const conversation: Message[] = [assistantInstructions, ...messages];
   const executedToolNames: string[] = [];
   let toolRounds = 0;
-  let perfumeMatches: Perfume[] | undefined;
   let products: Product[] | undefined;
 
   while (true) {
@@ -32,7 +31,6 @@ export async function runChat(
     if (toolCalls.length === 0) {
       return {
         content: response.message.content,
-        ...(perfumeMatches === undefined ? {} : { perfumeMatches }),
         ...(products === undefined ? {} : { products }),
         ...(executedToolNames.length > 0
           ? { toolNames: executedToolNames, toolName: executedToolNames[0] }
@@ -51,13 +49,9 @@ export async function runChat(
       const {
         toolNames,
         toolResults,
-        perfumeMatches: latestMatches,
         products: latestProducts,
       } = dispatchToolCalls(toolCalls);
-      if (latestProducts !== undefined || latestMatches !== undefined) {
-        products = latestProducts;
-        perfumeMatches = latestMatches;
-      }
+      if (latestProducts !== undefined) products = latestProducts;
       conversation.push(response.message, ...toolResults);
       executedToolNames.push(...toolNames);
       toolRounds += 1;

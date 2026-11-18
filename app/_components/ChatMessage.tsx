@@ -3,7 +3,7 @@ import { AssistantActivity } from "./AssistantActivity";
 import { ProductCard } from "./ProductCard";
 
 export function ChatMessage({ message }: { message: DisplayMessage }) {
-  const products = message.products ?? message.perfumeMatches ?? [];
+  const products = message.products ?? [];
   const hasProducts = products.length > 0;
   const messageClass = `message ${message.role}`;
 
@@ -28,7 +28,12 @@ export function ChatMessage({ message }: { message: DisplayMessage }) {
         {hasProducts && (
           <section className="catalog-matches" aria-label="Products">
             <h2>Products</h2>
-            <div className="catalog-grid">
+            <div
+              className="catalog-grid"
+              role="region"
+              aria-label="Product cards"
+              tabIndex={0}
+            >
               {products.map((product, index) => (
                 <ProductCard key={product.id} product={product} index={index} />
               ))}

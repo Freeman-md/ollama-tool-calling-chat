@@ -5,7 +5,6 @@ import { requestChat } from "@/app/_lib/request";
 export type DisplayMessage = ChatMessage & {
   id: number;
   toolNames?: string[];
-  perfumeMatches?: ChatSuccessResponse["perfumeMatches"];
   products?: ChatSuccessResponse["products"];
 };
 
@@ -64,7 +63,6 @@ export function useChat() {
           role: "assistant",
           content: result.content,
           toolNames,
-          perfumeMatches: result.perfumeMatches,
           products: result.products,
         },
       ]);

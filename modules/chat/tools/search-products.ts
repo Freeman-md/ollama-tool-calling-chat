@@ -1,25 +1,26 @@
 import type { Tool } from "ollama";
 import { z } from "zod";
 import { searchProducts } from "@/modules/catalog/service";
+import type { ToolRegistration, ToolResult } from "../types";
 import { ToolDispatchError } from "../errors";
-import {
-  moneySchema,
-  poundsValueSchema,
-  toCatalogFilters,
-} from "./search-perfumes";
-
-const productMoneySchema = z.union([
-  moneySchema,
-  z
-    .string()
-    .regex(/^£\d+(?:\.\d{1,2})?$/)
-    .transform((value) => Number(value.slice(1)))
-    .pipe(poundsValueSchema),
-]);
 
 export const name = "search_products";
 export const description =
   "Search products by name, category, scent family or price. Provide at least one filter; use names to find product IDs.";
+
+export const gbpAmountSchema = z
+  .union([z.number(), z.string().regex(/^£?\d+(?:\.\d{1,2})?$/)])
+  .transform((value) =>
+    typeof value === "string" ? Number(value.replace(/^£/, "")) : value,
+  )
+  .pipe(
+    z
+      .number()
+      .nonnegative()
+      .max(Number.MAX_SAFE_INTEGER / 100)
+      .multipleOf(0.01),
+  );
+
 export const schema = z
   .object({
     name: z
@@ -36,13 +37,13 @@ export const schema = z
       .optional()
       .describe("Product category, such as perfume."),
     scentFamily: z.string().trim().toLowerCase().min(1).optional(),
-    maxPriceGbp: productMoneySchema
+    maxPriceGbp: gbpAmountSchema
       .optional()
       .describe("Inclusive maximum price in GBP, such as £40 or less."),
-    underPriceGbp: productMoneySchema
+    underPriceGbp: gbpAmountSchema
       .optional()
       .describe("Strict upper price in GBP, such as under £40."),
-    overPriceGbp: productMoneySchema
+    overPriceGbp: gbpAmountSchema
       .refine((amount) => Math.round(amount * 100) < Number.MAX_SAFE_INTEGER)
       .optional()
       .describe("Strict lower price in GBP, such as above £40."),
@@ -50,6 +51,7 @@ export const schema = z
   .refine((filters) =>
     Object.values(filters).some((value) => value !== undefined),
   );
+
 export const definition: Tool = {
   type: "function",
   function: {
@@ -61,7 +63,29 @@ export const definition: Tool = {
   },
 };
 
-export function prepare(arguments_: unknown) {
+function toCatalogFilters({
+  scentFamily,
+  maxPriceGbp,
+  underPriceGbp,
+  overPriceGbp,
+}: z.output<typeof schema>): Parameters<typeof searchProducts>[0] {
+  const filters: Parameters<typeof searchProducts>[0] = { scentFamily };
+  if (maxPriceGbp !== undefined)
+    filters.maxPricePence = Math.round(maxPriceGbp * 100);
+  if (underPriceGbp !== undefined) {
+    const strictMaximum = Math.round(underPriceGbp * 100) - 1;
+    if (
+      filters.maxPricePence === undefined ||
+      strictMaximum < filters.maxPricePence
+    )
+      filters.maxPricePence = strictMaximum;
+  }
+  if (overPriceGbp !== undefined)
+    filters.minPricePence = Math.round(overPriceGbp * 100) + 1;
+  return filters;
+}
+
+export function prepare(arguments_: unknown): () => ToolResult {
   const result = schema.safeParse(arguments_);
   if (!result.success)
     throw new ToolDispatchError("Provide valid product search filters.", 400);
@@ -82,3 +106,5 @@ export function prepare(arguments_: unknown) {
     }
   };
 }
+
+export const tool = { definition, prepare } satisfies ToolRegistration;

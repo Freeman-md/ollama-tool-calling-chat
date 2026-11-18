@@ -1,11 +1,13 @@
 import type { Tool } from "ollama";
 import { z } from "zod";
 import { listProducts } from "@/modules/catalog/service";
+import type { ToolRegistration, ToolResult } from "../types";
 import { ToolDispatchError } from "../errors";
 
 export const name = "list_products";
 export const description =
   "Browse products in the fictional catalog. Returns up to three products by default.";
+
 export const schema = z.object({
   limit: z
     .number()
@@ -14,6 +16,7 @@ export const schema = z.object({
     .optional()
     .describe("Maximum number of products to list."),
 });
+
 export const definition: Tool = {
   type: "function",
   function: {
@@ -25,7 +28,7 @@ export const definition: Tool = {
   },
 };
 
-export function prepare(arguments_: unknown) {
+export function prepare(arguments_: unknown): () => ToolResult {
   const result = schema.safeParse(arguments_);
   if (!result.success)
     throw new ToolDispatchError("Provide a valid positive product limit.", 400);
@@ -41,3 +44,5 @@ export function prepare(arguments_: unknown) {
     }
   };
 }
+
+export const tool = { definition, prepare } satisfies ToolRegistration;

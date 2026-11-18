@@ -1,5 +1,5 @@
 import { products } from "./perfumes";
-import type { Perfume, Product } from "./types";
+import type { Product } from "./types";
 
 export function listProducts({ limit = 3 }: { limit?: number }): Product[] {
   return products.slice(0, limit);
@@ -37,18 +37,4 @@ export function searchProducts(filters: {
 
 export function getProductById(id: string): Product | null {
   return products.find((product) => product.id === id) ?? null;
-}
-
-// Preserve the existing perfume tool and response contract for older clients.
-export function searchPerfumes(
-  filters: Parameters<typeof searchProducts>[0],
-): Perfume[] {
-  return searchProducts({ ...filters, category: "perfume" }).map((product) => ({
-    id: product.id,
-    name: product.name,
-    pricePence: product.pricePence,
-    image: product.image,
-    scentFamily: product.details.scentFamily,
-    notes: product.details.notes,
-  }));
 }
