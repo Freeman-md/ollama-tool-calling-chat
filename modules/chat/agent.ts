@@ -94,9 +94,11 @@ export async function runChat(
         products = latestProducts;
         productView = latestProductView;
       }
+
       if (latestEligibleProducts !== undefined) {
         eligibleProducts = latestEligibleProducts;
       }
+      
       conversation.push(response.message, ...toolResults);
       executedToolNames.push(...toolNames);
       toolRounds += 1;
