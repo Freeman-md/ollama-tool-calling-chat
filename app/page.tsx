@@ -23,6 +23,7 @@ type Message = ChatMessage & {
   id: number;
   toolNames?: string[];
   perfumeMatches?: ChatSuccessResponse["perfumeMatches"];
+  products?: ChatSuccessResponse["products"];
 };
 
 export default function Home() {
@@ -109,6 +110,7 @@ export default function Home() {
           content: result.data.content,
           toolNames,
           perfumeMatches: result.data.perfumeMatches,
+          products: result.data.products,
         },
       ]);
     } catch {
@@ -163,44 +165,53 @@ export default function Home() {
                         )}
                         <p>{message.content}</p>
                       </div>
-                      {message.perfumeMatches &&
-                        message.perfumeMatches.length > 0 && (
-                          <section
-                            className="catalog-matches"
-                            aria-label="Catalog matches"
-                          >
-                            <h2>Catalog matches</h2>
-                            <div className="catalog-grid">
-                              {message.perfumeMatches.map((perfume, index) => (
-                                <article
-                                  className="perfume-card"
-                                  key={perfume.id}
-                                  style={
-                                    { "--card-index": index } as CSSProperties
-                                  }
-                                >
-                                  <Image
-                                    src={perfume.image.src}
-                                    alt={perfume.image.alt}
-                                    width={480}
-                                    height={480}
-                                    sizes="(max-width: 600px) 150px, 200px"
-                                  />
-                                  <div className="perfume-card-details">
-                                    <h3>{perfume.name}</h3>
-                                    <span className="perfume-price">
-                                      {new Intl.NumberFormat("en-GB", {
-                                        style: "currency",
-                                        currency: "GBP",
-                                      }).format(perfume.pricePence / 100)}
-                                    </span>
-                                    <p>{perfume.notes.join(" · ")}</p>
-                                  </div>
-                                </article>
-                              ))}
-                            </div>
-                          </section>
-                        )}
+                      {(message.products ?? message.perfumeMatches ?? [])
+                        .length > 0 && (
+                        <section
+                          className="catalog-matches"
+                          aria-label="Products"
+                        >
+                          <h2>Products</h2>
+                          <div className="catalog-grid">
+                            {(
+                              message.products ??
+                              message.perfumeMatches ??
+                              []
+                            ).map((product, index) => (
+                              <article
+                                className="perfume-card"
+                                key={product.id}
+                                style={
+                                  { "--card-index": index } as CSSProperties
+                                }
+                              >
+                                <Image
+                                  src={product.image.src}
+                                  alt={product.image.alt}
+                                  width={480}
+                                  height={480}
+                                  sizes="(max-width: 600px) 150px, 200px"
+                                />
+                                <div className="perfume-card-details">
+                                  <h3>{product.name}</h3>
+                                  <span className="perfume-price">
+                                    {new Intl.NumberFormat("en-GB", {
+                                      style: "currency",
+                                      currency: "GBP",
+                                    }).format(product.pricePence / 100)}
+                                  </span>
+                                  <p>
+                                    {("category" in product
+                                      ? product.details.notes
+                                      : product.notes
+                                    ).join(" · ")}
+                                  </p>
+                                </div>
+                              </article>
+                            ))}
+                          </div>
+                        </section>
+                      )}
                     </div>
                   </>
                 ) : (

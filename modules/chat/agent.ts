@@ -1,6 +1,6 @@
 import ollama, { type Message } from "ollama";
 import type { ChatMessage, ChatSuccessResponse } from "./types";
-import type { Perfume } from "@/modules/catalog/types";
+import type { Perfume, Product } from "@/modules/catalog/types";
 import { CHAT_MODEL, MAX_TOOL_ROUNDS } from "@/lib/config";
 import { ChatAgentError, ToolDispatchError } from "./errors";
 import { dispatchToolCalls, ollamaTools } from "./tools-dispatch";
@@ -8,7 +8,7 @@ import { dispatchToolCalls, ollamaTools } from "./tools-dispatch";
 const assistantInstructions: Message = {
   role: "system",
   content:
-    "Be a concise, natural conversational assistant. Answer only what the user asked; do not volunteer code, examples, tool descriptions, or extra suggestions. For greetings and small talk, reply briefly and naturally without calling tools. Use available tools only when needed to answer the user's actual request. Search the perfume catalog only when the user asks about perfumes or fragrances. For perfume recommendations, recommend only products returned by the tool, using their catalog prices and notes. If there are no matches, ask whether the shopper would change their budget or scent preference.",
+    "Be a concise, natural conversational assistant. Answer only what the user asked; do not volunteer code, examples, tool descriptions, or extra suggestions. For greetings and small talk, reply briefly without calling tools. Use list_products to browse, search_products to search the catalog, and get_product_by_id for details or availability. If you need an ID, search by product name first. Use only catalog facts for product recommendations, prices, notes, details and availability. Do not infer or invent scent characteristics or note roles that are not in the catalog. This app has no basket or purchasing functionality; do not offer or imply it. If no matches, ask whether the shopper would change their budget or scent preference.",
 };
 
 export async function runChat(
@@ -18,6 +18,7 @@ export async function runChat(
   const executedToolNames: string[] = [];
   let toolRounds = 0;
   let perfumeMatches: Perfume[] | undefined;
+  let products: Product[] | undefined;
 
   while (true) {
     const response = await ollama.chat({
@@ -32,6 +33,7 @@ export async function runChat(
       return {
         content: response.message.content,
         ...(perfumeMatches === undefined ? {} : { perfumeMatches }),
+        ...(products === undefined ? {} : { products }),
         ...(executedToolNames.length > 0
           ? { toolNames: executedToolNames, toolName: executedToolNames[0] }
           : {}),
@@ -50,8 +52,12 @@ export async function runChat(
         toolNames,
         toolResults,
         perfumeMatches: latestMatches,
+        products: latestProducts,
       } = dispatchToolCalls(toolCalls);
-      if (latestMatches !== undefined) perfumeMatches = latestMatches;
+      if (latestProducts !== undefined || latestMatches !== undefined) {
+        products = latestProducts;
+        perfumeMatches = latestMatches;
+      }
       conversation.push(response.message, ...toolResults);
       executedToolNames.push(...toolNames);
       toolRounds += 1;

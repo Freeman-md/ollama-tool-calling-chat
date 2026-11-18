@@ -3,7 +3,9 @@ import test from "node:test";
 import ollama from "ollama";
 import { POST } from "@/app/api/chat/route";
 import { conversions } from "@/modules/chat/tools/celsius-to-fahrenheit";
-import { perfumes } from "@/modules/catalog/perfumes";
+import { searchPerfumes } from "@/modules/catalog/service";
+
+const perfumes = searchPerfumes({});
 
 test("rejects a tool call without celsius before conversion or follow-up", async (t) => {
   const chatSpy = t.mock.method(ollama, "chat", async () => ({
@@ -70,4 +72,39 @@ test("returns validated perfume records to the browser", async (t) => {
   );
   assert.equal(response.status, 200);
   assert.deepEqual((await response.json()).perfumeMatches, [perfumes[0]]);
+});
+
+test("returns validated product records including availability and details", async (t) => {
+  const responses = [
+    {
+      message: {
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            function: {
+              name: "get_product_by_id",
+              arguments: { id: "cedar-dusk" },
+            },
+          },
+        ],
+      },
+    },
+    { message: { role: "assistant", content: "In stock." } },
+  ];
+  t.mock.method(ollama, "chat", async () => responses.shift());
+  const response = await POST(
+    new Request("http://localhost/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ role: "user", content: "Is Cedar Dusk available?" }],
+      }),
+    }),
+  );
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.products[0].availability, "in_stock");
+  assert.equal(body.products[0].details.bottleSizeMl, 50);
+  assert.equal(body.products[0].image.src, "/catalog/perfumes/cedar-dusk.webp");
 });

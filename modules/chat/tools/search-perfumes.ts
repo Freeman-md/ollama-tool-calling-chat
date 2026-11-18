@@ -9,16 +9,16 @@ export const name = "search_perfumes";
 export const description =
   "Search the fictional perfume catalog by scent family or price in GBP. Provide at least one filter.";
 
-const moneySchema = z
+export const poundsValueSchema = z
+  .number()
+  .nonnegative()
+  .max(Number.MAX_SAFE_INTEGER / 100)
+  .multipleOf(0.01);
+
+export const moneySchema = z
   .union([z.number(), z.string().regex(/^\d+(?:\.\d{1,2})?$/)])
   .transform(Number)
-  .pipe(
-    z
-      .number()
-      .nonnegative()
-      .max(Number.MAX_SAFE_INTEGER / 100)
-      .multipleOf(0.01),
-  );
+  .pipe(poundsValueSchema);
 
 export const searchPerfumesSchema = z
   .object({
@@ -63,7 +63,7 @@ function poundsToPence(pounds: number): number {
   return Math.round(pounds * 100);
 }
 
-function toCatalogFilters({
+export function toCatalogFilters({
   scentFamily,
   maxPriceGbp,
   underPriceGbp,

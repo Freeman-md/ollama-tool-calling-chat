@@ -5,7 +5,9 @@ import { ChatAgentError } from "@/modules/chat/errors";
 import { runChat } from "@/modules/chat/agent";
 import { MAX_TOOL_ROUNDS } from "@/lib/config";
 import { conversions } from "@/modules/chat/tools/celsius-to-fahrenheit";
-import { perfumes } from "@/modules/catalog/perfumes";
+import { searchPerfumes } from "@/modules/catalog/service";
+
+const perfumes = searchPerfumes({});
 
 const celsiusCall = (celsius) => ({
   function: {

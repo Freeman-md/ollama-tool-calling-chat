@@ -1,22 +1,54 @@
-import { perfumes } from "./perfumes";
-import type { Perfume } from "./types";
+import { products } from "./perfumes";
+import type { Perfume, Product } from "./types";
 
-export function searchPerfumes(filters: {
+export function listProducts({ limit = 3 }: { limit?: number }): Product[] {
+  return products.slice(0, limit);
+}
+
+export function searchProducts(filters: {
+  name?: string;
+  category?: string;
   scentFamily?: string;
   minPricePence?: number;
   maxPricePence?: number;
-}): Perfume[] {
-  const { scentFamily, minPricePence, maxPricePence } = filters;
+}): Product[] {
+  const { name, category, scentFamily, minPricePence, maxPricePence } = filters;
 
-  return perfumes.filter((perfume) => {
+  return products.filter((product) => {
+    const matchesName =
+      name === undefined ||
+      product.name.toLowerCase().includes(name.trim().toLowerCase());
+    const matchesCategory =
+      category === undefined ||
+      product.category === category.trim().toLowerCase();
     const matchesScent =
-      scentFamily === undefined || perfume.scentFamily === scentFamily;
+      scentFamily === undefined ||
+      (product.category === "perfume" &&
+        product.details.scentFamily === scentFamily.trim().toLowerCase());
     const matchesMinimumPrice =
-      minPricePence === undefined || perfume.pricePence >= minPricePence;
+      minPricePence === undefined || product.pricePence >= minPricePence;
     const matchesMaximumPrice =
-      maxPricePence === undefined || perfume.pricePence <= maxPricePence;
+      maxPricePence === undefined || product.pricePence <= maxPricePence;
     const matchesPrice = matchesMinimumPrice && matchesMaximumPrice;
 
-    return matchesScent && matchesPrice;
+    return matchesName && matchesCategory && matchesScent && matchesPrice;
   });
+}
+
+export function getProductById(id: string): Product | null {
+  return products.find((product) => product.id === id) ?? null;
+}
+
+// Preserve the existing perfume tool and response contract for older clients.
+export function searchPerfumes(
+  filters: Parameters<typeof searchProducts>[0],
+): Perfume[] {
+  return searchProducts({ ...filters, category: "perfume" }).map((product) => ({
+    id: product.id,
+    name: product.name,
+    pricePence: product.pricePence,
+    image: product.image,
+    scentFamily: product.details.scentFamily,
+    notes: product.details.notes,
+  }));
 }

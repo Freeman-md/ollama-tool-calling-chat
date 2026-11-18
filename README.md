@@ -1,6 +1,6 @@
 # Ollama Tool Calling Chat
 
-A minimal Next.js App Router chat that talks to a local Ollama model. The server offers `celsius_to_fahrenheit` and `search_perfumes`, validating tool arguments with Zod. The perfume catalog contains fictional products, shown as cards with generated product photos when a search finds matches.
+A minimal Next.js App Router chat that talks to a local Ollama model. The server offers `list_products`, `search_products`, `get_product_by_id`, and `celsius_to_fahrenheit`, validating tool arguments with Zod. The product catalog contains fictional perfumes, shown as cards with generated product photos when a search finds matches. Sample descriptions, bottle sizes, and availability are fictional.
 
 ## Prerequisites
 
@@ -69,6 +69,17 @@ Convert 20°C to Fahrenheit
 ```
 
 The assistant should answer `68°F` and show `Used celsius_to_fahrenheit` above the reply.
+
+### Product catalog conversation
+
+A browser conversation with local `qwen3.5:9b` produced these results:
+
+- “Show me the products in the catalog.” used `list_products` and displayed Cedar Dusk (£40), Emberwood (£55), and Rose Veil (£32), with matching product cards. The first two were listed as in stock and Rose Veil as out of stock.
+- “I want a woody fragrance for £40 or less.” used `search_products` and returned Cedar Dusk at £40, with its woody notes and card.
+- “Can you tell me more details about it?” used `search_products` followed by `get_product_by_id` and reported Cedar Dusk's sample description, 50 ml bottle, notes, price and availability. In a separate run, Qwen answered the same details directly from search results without fetching by ID.
+- “Is it available?” returned that Cedar Dusk was in stock. In different runs, Qwen used `search_products` or answered from the previous reply.
+
+On an earlier repeat, Qwen supplied `"£40"` as a budget and the app returned a validation error; product search now accepts this format. The model also added descriptive flourishes beyond the catalog and once offered to add an item to a basket, which this app does not support. The guidance now explicitly excludes purchasing; a later details check did not offer it. Model output can vary and is not guaranteed to be grounded.
 
 ### Shopper demo observations
 
