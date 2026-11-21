@@ -1,26 +1,31 @@
 import Markdown from "react-markdown";
-import type { DisplayMessage } from "@/app/_hooks/use-chat";
+import type { DisplayMessage } from "@/app/_lib/chat-transcript";
 import type { ApprovalRequest } from "@/modules/chat/types";
 import { AssistantActivity } from "./AssistantActivity";
-import { BasketApproval } from "./BasketApproval";
+import { ApprovalCard } from "./ApprovalCard";
 import { BasketSummary } from "./BasketSummary";
 import { ProductCard } from "./ProductCard";
 
 type ChatMessageProps = {
   message: DisplayMessage;
+  isDeciding: boolean;
   onApprovalDecision: (
     messageId: number,
     approval: ApprovalRequest,
   ) => Promise<void>;
 };
 
-export function ChatMessage({ message, onApprovalDecision }: ChatMessageProps) {
+export function ChatMessage({
+  message,
+  isDeciding,
+  onApprovalDecision,
+}: ChatMessageProps) {
   const products = message.products ?? [];
   const recommendedProductIds = message.recommendedProductIds ?? [];
   const hasProducts = products.length > 0;
   const isPending = message.isPending === true;
   const hasBasketDecision = message.approvals?.some(
-    ({ resolution }) => resolution !== undefined,
+    ({ receipt }) => receipt?.kind === "basket_change",
   );
   const basket = hasBasketDecision ? undefined : message.cart;
   const messageClass = `message ${message.role}`;
@@ -53,9 +58,10 @@ export function ChatMessage({ message, onApprovalDecision }: ChatMessageProps) {
         )}
         {!isPending && basket && <BasketSummary cart={basket} />}
         {message.approvals?.map((approval) => (
-          <BasketApproval
+          <ApprovalCard
             key={approval.id}
             approval={approval}
+            disabled={isDeciding}
             onDecision={handleApprovalDecision}
           />
         ))}

@@ -70,11 +70,11 @@ What woody fragrances do you have?
 
 The assistant can search the catalog, show matching products below its reply, and highlight its recommendations. Cards show a compact summary by default; a detailed product lookup can show the description and full specifications. Highlights are limited to products in both the latest search and the displayed cards.
 
-Ask “What’s in my basket?” to see the basket contents and the GBP total below the reply. To add a product, set its quantity, or remove it, ask in chat and review the proposed quantity and new total. Use **Approve** to apply the change or **Cancel** to keep the basket as it is. Proposals expire after five minutes. If the basket changed since a proposal was created, ask for the change again.
+Ask “What’s in my basket?” to see the basket contents and the GBP total below the reply. To add a product, set its quantity, or remove it, ask in chat and review the proposed quantity and new total. Use **Approve** to apply the change or **Cancel** to keep the basket as it is. The selected button text appears as a shopper message and the original card shows the receipt. Sending a new chat message closes pending proposals, even if the reply fails. Proposals also expire after five minutes. If the basket changed since a proposal was created, ask for the change again.
 
 Each guest starts with an empty basket. A session cookie links requests to the same basket. Restarting the server clears its in-memory baskets and proposals.
 
-Valid `POST /api/chat` requests stream newline-delimited JSON. `activity` events carry a shopper-facing label, followed by either a `complete` event with the reply and any product cards, basket snapshot, or pending approvals, or an `error` event. Invalid requests return a JSON error before streaming. Completed activity is available above the reply in a collapsed section. `PATCH /api/chat` takes a proposal ID and an approve or cancel decision and returns the resulting basket as JSON.
+Valid `POST /api/chat` requests stream newline-delimited JSON. `activity` events carry a shopper-facing label, followed by either a `complete` event with the reply and any product cards, basket snapshot, or pending approvals, or an `error` event. Invalid requests return a JSON error before streaming. Completed activity is available above the reply in a collapsed section. `PATCH /api/chat` takes a proposal ID and an approve or cancel decision and returns the saved receipt as JSON. The next chat turn uses the shopper message’s proposal ID to look up the confirmed outcome for that guest.
 
 ### Product catalog conversation
 

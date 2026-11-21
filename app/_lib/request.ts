@@ -7,8 +7,8 @@ import {
 } from "@/modules/chat/contract";
 import type {
   ActivityLabel,
+  ApprovalReceipt,
   ApprovalRequest,
-  ApprovalResponse,
   ChatMessage,
   ChatSuccessResponse,
 } from "@/modules/chat/types";
@@ -16,7 +16,7 @@ import type {
 const unavailableMessage =
   "Couldn’t get a reply from local Ollama. Check that Ollama is running, then try again.";
 
-const approvalUnavailable = "Couldn’t confirm your basket decision. Try again.";
+const approvalUnavailable = "Couldn’t confirm your decision. Try again.";
 
 export class ApprovalRequestError extends Error {
   constructor(
@@ -30,7 +30,7 @@ export class ApprovalRequestError extends Error {
 
 export async function requestApproval(
   approval: ApprovalRequest,
-): Promise<ApprovalResponse> {
+): Promise<ApprovalReceipt> {
   const requestBody = ApprovalRequestSchema.parse(approval);
   let response: Response;
   try {
@@ -53,7 +53,13 @@ export async function requestApproval(
   }
 
   const result = ApprovalResponseSchema.safeParse(body);
-  if (!result.success) {
+  const expectedStatus =
+    approval.decision === "approve" ? "approved" : "cancelled";
+  if (
+    !result.success ||
+    result.data.proposalId !== approval.proposalId ||
+    result.data.status !== expectedStatus
+  ) {
     throw new Error(approvalUnavailable);
   }
   return result.data;

@@ -3,6 +3,7 @@ import type { ChangeEvent, FormEvent, KeyboardEvent } from "react";
 type ChatComposerProps = {
   draft: string;
   isPending: boolean;
+  isDeciding: boolean;
   error: string | null;
   onDraftChange: (draft: string) => void;
   onSend: () => void;
@@ -11,12 +12,13 @@ type ChatComposerProps = {
 export function ChatComposer({
   draft,
   isPending,
+  isDeciding,
   error,
   onDraftChange,
   onSend,
 }: ChatComposerProps) {
   const placeholder = isPending ? "Waiting for a reply…" : "Send a message";
-  const isSendDisabled = !draft.trim() || isPending;
+  const isSendDisabled = !draft.trim() || isPending || isDeciding;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

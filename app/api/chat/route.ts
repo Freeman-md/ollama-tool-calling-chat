@@ -52,15 +52,8 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const outcome = approvalService.decide(guestSessionId, approval.data);
-    const cart =
-      outcome.status === "approved"
-        ? outcome.result.cart
-        : cartService.getCart(guestSessionId);
-    const result = ApprovalResponseSchema.parse({
-      status: outcome.status,
-      cart,
-    });
+    const receipt = approvalService.decide(guestSessionId, approval.data);
+    const result = ApprovalResponseSchema.parse(receipt);
     return Response.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof ToolDispatchError) {
@@ -86,6 +79,7 @@ export async function POST(request: NextRequest) {
   const chatRequest: ChatRequest = parsedRequest.data;
   const cookieSessionId = request.cookies.get(guestSessionCookie)?.value;
   const guestSessionId = cartService.resolveGuestSession(cookieSessionId);
+  const turn = approvalService.beginTurn(guestSessionId);
   const encoder = new TextEncoder();
   let cancelled = false;
   const stream = new ReadableStream<Uint8Array>({
@@ -99,7 +93,7 @@ export async function POST(request: NextRequest) {
 
       try {
         const result = await runChat(chatRequest.messages, {
-          guestSessionId,
+          turn,
           onActivity(label) {
             send({ type: "activity", label });
           },

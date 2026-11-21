@@ -67,7 +67,10 @@ export function dispatchToolCalls(
     }
 
     const registration = registry[name];
-    if (registration.effect === "read" || registration.approval === "skip") {
+    if (
+      registration.approval === "skip" ||
+      (registration.effect === "read" && registration.approval !== "required")
+    ) {
       return { name, execute: registration.prepare(arguments_) };
     }
     const prepared = registration.prepare(arguments_);

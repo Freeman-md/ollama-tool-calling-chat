@@ -24,6 +24,7 @@ test("reads split UTF-8 lines and returns the validated final response", async (
     {
       id: randomUUID(),
       expiresAt: Date.now() + 300000,
+      buttons: { approve: "Approve", cancel: "Cancel" },
       preview: {
         kind: "basket_change",
         productName: "Cedar Dusk",
@@ -80,7 +81,11 @@ test("reads split UTF-8 lines and returns the validated final response", async (
 test("sends only the proposal and decision and decodes the directly returned basket", async (t) => {
   const approval = { proposalId: randomUUID(), decision: "approve" };
   const result = {
+    kind: "basket_change",
+    proposalId: approval.proposalId,
     status: "approved",
+    buttonLabel: "Approve",
+    outcome: "Basket updated. Cedar Dusk quantity was set to 2.",
     cart: {
       items: [{ productId: "cedar-dusk", name: "Cedar Dusk", quantity: 2 }],
       totalPence: 8000,
@@ -95,6 +100,13 @@ test("sends only the proposal and decision and decodes the directly returned bas
   assert.equal(url, "/api/chat");
   assert.equal(options.method, "PATCH");
   assert.deepEqual(JSON.parse(options.body), approval);
+
+  fetch.mock.mockImplementation(async () =>
+    Response.json({ ...result, proposalId: randomUUID() }),
+  );
+  await assert.rejects(requestApproval(approval), {
+    message: "Couldn’t confirm your decision. Try again.",
+  });
 
   fetch.mock.mockImplementation(async () =>
     Response.json(

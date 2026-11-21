@@ -20,6 +20,20 @@ function cedarDuskCart(quantity) {
   };
 }
 
+function basketReceipt(proposalId, decision, quantity) {
+  const isApproval = decision === "approve";
+  return {
+    kind: "basket_change",
+    proposalId,
+    status: isApproval ? "approved" : "cancelled",
+    buttonLabel: isApproval ? "Approve" : "Cancel",
+    outcome: isApproval
+      ? `Basket updated. Cedar Dusk quantity was set to ${quantity}.`
+      : `Basket change cancelled. Cedar Dusk quantity stayed at ${quantity}.`,
+    cart: quantity === 0 ? emptyCart : cedarDuskCart(quantity),
+  };
+}
+
 function call(name, arguments_) {
   return { function: { name, arguments: arguments_ } };
 }
@@ -49,16 +63,21 @@ function mockModel(t) {
   });
 }
 
+async function readEvents(response) {
+  return (await response.text()).trim().split("\n").map(JSON.parse);
+}
+
+function sendTurn(sessionId, messages) {
+  return POST(request("POST", sessionId, { messages }));
+}
+
 async function sendToolCalls(model, sessionId, ...toolCalls) {
   model.mock.mockImplementationOnce(async () => ({
     message: { role: "assistant", content: "", tool_calls: toolCalls },
   }));
-  const response = await POST(
-    request("POST", sessionId, {
-      messages: [{ role: "user", content: "Change my basket." }],
-    }),
+  return readEvents(
+    await sendTurn(sessionId, [{ role: "user", content: "Change my basket." }]),
   );
-  return (await response.text()).trim().split("\n").map(JSON.parse);
 }
 
 async function propose(model, sessionId, name, quantity) {
@@ -99,7 +118,7 @@ test("reviews an add without writing and returns one saved result for concurrent
     decide(sessionId, proposal.id, "approve"),
     decide(sessionId, proposal.id, "approve"),
   ]);
-  const outcome = { status: "approved", cart: cedarDuskCart(2) };
+  const outcome = basketReceipt(proposal.id, "approve", 2);
   for (const reply of replies) {
     assert.equal(reply.status, 200);
     assert.deepEqual(await reply.json(), outcome);
@@ -138,10 +157,10 @@ test("cancels a quantity change and approves a separate removal", async (t) => {
 
   const cancel = await decide(sessionId, quantityChange.id, "cancel");
   assert.equal(cancel.status, 200);
-  assert.deepEqual(await cancel.json(), {
-    status: "cancelled",
-    cart: cedarDuskCart(2),
-  });
+  assert.deepEqual(
+    await cancel.json(),
+    basketReceipt(quantityChange.id, "cancel", 2),
+  );
   assert.equal(
     (await decide(sessionId, quantityChange.id, "approve")).status,
     409,
@@ -154,10 +173,10 @@ test("cancels a quantity change and approves a separate removal", async (t) => {
   assert.equal(remove.preview.totalPence, 0);
   const approved = await decide(sessionId, remove.id, "approve");
   assert.equal(approved.status, 200);
-  assert.deepEqual(await approved.json(), {
-    status: "approved",
-    cart: emptyCart,
-  });
+  assert.deepEqual(
+    await approved.json(),
+    basketReceipt(remove.id, "approve", 0),
+  );
   assert.deepEqual(cartService.getCart(sessionId), emptyCart);
   assert.equal(model.mock.callCount(), 2);
 });
@@ -265,10 +284,10 @@ test("checks approval origins against the request host on loopback", async (t) =
   assert.deepEqual(cartService.getCart(sessionId), emptyCart);
   const response = await approveFrom(origin);
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), {
-    status: "approved",
-    cart: cedarDuskCart(1),
-  });
+  assert.deepEqual(
+    await response.json(),
+    basketReceipt(proposal.id, "approve", 1),
+  );
 });
 
 test("validates the full batch before reading or saving proposals", async (t) => {
@@ -322,4 +341,211 @@ test("keeps a gated write pending while reads and explicit server opt-outs run",
   assert.equal(read.mock.callCount(), 1);
   assert.equal(skip.mock.callCount(), 1);
   assert.equal(write.mock.callCount(), 0);
+});
+
+test("an opt-in read requires a decision and uses its configured labels in the receipt", async (t) => {
+  const sessionId = cartService.resolveGuestSession(undefined);
+  const model = mockModel(t);
+  const read = t.mock.fn(() => ({
+    kind: "read",
+    outcome: "The collection contains three fragrances.",
+  }));
+  const action = {
+    preview: {
+      kind: "read",
+      title: "View collection",
+      description: "Share the collection details in chat.",
+    },
+    buttons: { approve: "Show collection", cancel: "Skip this read" },
+    isCurrent: () => true,
+    execute: read,
+    cancelledReceipt: () => ({
+      kind: "read",
+      outcome: "The collection details stayed hidden.",
+    }),
+  };
+  const registry = {
+    read: {
+      effect: "read",
+      approval: "required",
+      prepare: () => ({
+        execute: () => ({ content: read().outcome }),
+        review: () => action,
+      }),
+    },
+  };
+  const turn = approvalService.beginTurn(sessionId);
+  const { toolResults, approvalActions } = dispatchToolCalls(
+    [call("read", {})],
+    registry,
+  );
+  const [proposal, cancelledProposal] = approvalService.propose(turn, [
+    ...approvalActions,
+    ...approvalActions,
+  ]);
+  assert.deepEqual(toolResults, []);
+  assert.deepEqual(proposal.buttons, action.buttons);
+  assert.deepEqual(proposal.preview, action.preview);
+  assert.equal(read.mock.callCount(), 0);
+
+  const cancelled = await decide(sessionId, cancelledProposal.id, "cancel");
+  assert.equal(cancelled.status, 200);
+  assert.deepEqual(await cancelled.json(), {
+    kind: "read",
+    proposalId: cancelledProposal.id,
+    status: "cancelled",
+    buttonLabel: "Skip this read",
+    outcome: "The collection details stayed hidden.",
+  });
+  assert.equal(read.mock.callCount(), 0);
+
+  const approved = await decide(sessionId, proposal.id, "approve");
+  assert.equal(approved.status, 200);
+  assert.deepEqual(await approved.json(), {
+    kind: "read",
+    proposalId: proposal.id,
+    status: "approved",
+    buttonLabel: "Show collection",
+    outcome: "The collection contains three fragrances.",
+  });
+  assert.equal(read.mock.callCount(), 1);
+  assert.equal(model.mock.callCount(), 0);
+});
+
+test("accepting a new message closes pending proposals even when Qwen fails", async (t) => {
+  const model = mockModel(t);
+  const owner = cartService.resolveGuestSession(undefined);
+  const other = cartService.resolveGuestSession(undefined);
+  const proposal = await propose(model, owner, "add_to_cart", 1);
+  const otherProposal = await propose(model, other, "add_to_cart", 2);
+  const invalidTurn = await sendTurn(owner, []);
+  assert.equal(invalidTurn.status, 400);
+
+  const message = { role: "user", content: "Approve" };
+  let seenMessage;
+  let decisionStatusAtModelStart;
+  model.mock.mockImplementationOnce(async ({ messages }) => {
+    seenMessage = messages.at(-1);
+    decisionStatusAtModelStart = (await decide(owner, proposal.id, "approve"))
+      .status;
+    throw new Error("Model unavailable.");
+  });
+  const events = await readEvents(await sendTurn(owner, [message]));
+  assert.deepEqual(seenMessage, message);
+  assert.equal(decisionStatusAtModelStart, 409);
+  assert.deepEqual(events, [
+    {
+      type: "error",
+      error: "Unable to reach local Ollama or generate a reply.",
+    },
+  ]);
+  const rejected = await decide(owner, proposal.id, "cancel");
+  assert.equal(rejected.status, 409);
+  assert.deepEqual(await rejected.json(), {
+    error: "A newer chat message closed this proposal.",
+  });
+  assert.deepEqual(cartService.getCart(owner), emptyCart);
+  assert.equal((await decide(other, otherProposal.id, "approve")).status, 200);
+  assert.deepEqual(cartService.getCart(other), cedarDuskCart(2));
+});
+
+test("a model reply from a superseded turn cannot save an actionable proposal", async (t) => {
+  const model = mockModel(t);
+  const sessionId = cartService.resolveGuestSession(undefined);
+  const started = Promise.withResolvers();
+  const response = Promise.withResolvers();
+  model.mock.mockImplementationOnce(() => {
+    started.resolve();
+    return response.promise;
+  });
+  const older = readEvents(
+    await sendTurn(sessionId, [{ role: "user", content: "Add one." }]),
+  );
+  await started.promise;
+  const newer = await propose(model, sessionId, "add_to_cart", 2);
+
+  response.resolve({
+    message: {
+      role: "assistant",
+      content: "",
+      tool_calls: [call("add_to_cart", { productId, quantity: 1 })],
+    },
+  });
+  assert.deepEqual(await older, [
+    { type: "error", error: "A newer chat message closed this proposal." },
+  ]);
+  assert.equal((await decide(sessionId, newer.id, "approve")).status, 200);
+  assert.deepEqual(cartService.getCart(sessionId), cedarDuskCart(2));
+});
+
+test("both decisions record exact labels and send server receipts to Qwen on the next chat turn", async (t) => {
+  const model = mockModel(t);
+
+  for (const decision of ["approve", "cancel"]) {
+    const sessionId = cartService.resolveGuestSession(undefined);
+    const proposal = await propose(model, sessionId, "add_to_cart", 2);
+    const callsBeforeDecision = model.mock.callCount();
+    const response = await decide(sessionId, proposal.id, decision);
+    assert.equal(response.status, 200);
+    const receipt = await response.json();
+    const quantity = decision === "approve" ? 2 : 0;
+    assert.deepEqual(receipt, basketReceipt(proposal.id, decision, quantity));
+    assert.equal(receipt.buttonLabel, proposal.buttons[decision]);
+    assert.equal(model.mock.callCount(), callsBeforeDecision);
+
+    const shopper = {
+      role: "user",
+      content: receipt.buttonLabel,
+      approvalProposalId: proposal.id,
+    };
+    const question = { role: "user", content: "What happened?" };
+    model.mock.mockImplementationOnce(async () => ({
+      message: { role: "assistant", content: "Got it." },
+    }));
+    const events = await readEvents(
+      await sendTurn(sessionId, [shopper, question]),
+    );
+    assert.equal(events.at(-1).type, "complete");
+    assert.deepEqual(model.mock.calls.at(-1).arguments[0].messages.slice(-2), [
+      {
+        role: "user",
+        content: `${receipt.buttonLabel}\n\nServer-confirmed outcome: ${receipt.outcome}`,
+      },
+      question,
+    ]);
+
+    const retry = await decide(sessionId, proposal.id, decision);
+    assert.equal(retry.status, 200);
+    assert.deepEqual(await retry.json(), receipt);
+    assert.equal(model.mock.callCount(), callsBeforeDecision + 1);
+    assert.deepEqual(cartService.getCart(sessionId), receipt.cart);
+  }
+});
+
+test("ignores receipt references from another guest, a pending proposal, or an unmatched label", async (t) => {
+  const model = mockModel(t);
+  const owner = cartService.resolveGuestSession(undefined);
+  const other = cartService.resolveGuestSession(undefined);
+  const completed = await propose(model, owner, "add_to_cart", 1);
+  await decide(owner, completed.id, "approve");
+  const pending = await propose(model, owner, "add_to_cart", 1);
+
+  for (const [sessionId, proposalId, label] of [
+    [other, completed.id, "Approve"],
+    [owner, pending.id, "Approve"],
+    [owner, completed.id, "Cancel"],
+  ]) {
+    model.mock.mockImplementationOnce(async () => ({
+      message: { role: "assistant", content: "Got it." },
+    }));
+    await readEvents(
+      await sendTurn(sessionId, [
+        { role: "user", content: label, approvalProposalId: proposalId },
+      ]),
+    );
+    assert.deepEqual(model.mock.calls.at(-1).arguments[0].messages.at(-1), {
+      role: "user",
+      content: label,
+    });
+  }
 });

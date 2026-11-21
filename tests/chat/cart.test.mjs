@@ -9,6 +9,7 @@ import { ChatMessage } from "@/app/_components/ChatMessage";
 import { POST } from "@/app/api/chat/route";
 import { cartService, createCartService } from "@/modules/cart/service";
 import { runChat } from "@/modules/chat/agent";
+import { approvalService } from "@/modules/chat/approvals";
 import {
   dispatchToolCalls,
   getToolRegistry,
@@ -213,7 +214,7 @@ test("preserves both the basket and product cards in a recommendation reply", as
         content: "Recommend a woody fragrance and show my basket.",
       },
     ],
-    { guestSessionId },
+    { turn: approvalService.beginTurn(guestSessionId) },
   );
   assert.deepEqual(result.cart, emptyCart);
   assert.deepEqual(

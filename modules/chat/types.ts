@@ -6,6 +6,7 @@ import type {
   ApprovalProposalSchema,
   ApprovalRequestSchema,
   ApprovalResponseSchema,
+  ApprovalResultSchema,
   ChatErrorResponseSchema,
   ChatMessageSchema,
   ChatRequestSchema,
@@ -22,7 +23,8 @@ export type ActivityLabel = z.infer<typeof ActivityLabelSchema>;
 export type ChatStreamEvent = z.infer<typeof ChatStreamEventSchema>;
 export type ApprovalProposal = z.infer<typeof ApprovalProposalSchema>;
 export type ApprovalRequest = z.infer<typeof ApprovalRequestSchema>;
-export type ApprovalResponse = z.infer<typeof ApprovalResponseSchema>;
+export type ApprovalReceipt = z.infer<typeof ApprovalResponseSchema>;
+export type ApprovalResult = z.infer<typeof ApprovalResultSchema>;
 
 export type ToolResult = {
   content: string;
@@ -33,11 +35,13 @@ export type ToolResult = {
 };
 export type ApprovalAction = {
   preview: ApprovalProposal["preview"];
+  buttons: ApprovalProposal["buttons"];
   isCurrent(): boolean;
-  execute(): ToolResult;
+  execute(): ApprovalResult;
+  cancelledReceipt(): ApprovalResult;
 };
 
-export type PreparedWrite = {
+export type PreparedApproval = {
   execute(): ToolResult;
   review(): ApprovalAction;
 };
@@ -46,15 +50,16 @@ type DirectToolRegistration = {
   definition: Tool;
   prepare(arguments_: unknown): () => ToolResult;
 } & (
-  { effect: "read"; approval?: never } | { effect: "write"; approval: "skip" }
+  { effect: "read"; approval?: "skip" } | { effect: "write"; approval: "skip" }
 );
 
 export type ApprovalRequiredToolRegistration = {
   definition: Tool;
-  effect: "write";
-  approval?: "required";
-  prepare(arguments_: unknown): PreparedWrite;
-};
+  prepare(arguments_: unknown): PreparedApproval;
+} & (
+  | { effect: "read"; approval: "required" }
+  | { effect: "write"; approval?: "required" }
+);
 
 export type ToolRegistration =
   DirectToolRegistration | ApprovalRequiredToolRegistration;

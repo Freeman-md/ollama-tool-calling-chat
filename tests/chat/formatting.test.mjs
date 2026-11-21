@@ -84,6 +84,7 @@ test("shows the approved basket in place of an earlier read in the same reply", 
           {
             id: "proposal",
             expiresAt: Date.now(),
+            buttons: { approve: "Approve", cancel: "Cancel" },
             preview: {
               kind: "basket_change",
               productName: "Cedar Dusk",
@@ -92,8 +93,12 @@ test("shows the approved basket in place of an earlier read in the same reply", 
               totalPence: 8000,
               currency: "GBP",
             },
-            resolution: {
+            receipt: {
+              kind: "basket_change",
+              proposalId: "proposal",
               status: "approved",
+              buttonLabel: "Approve",
+              outcome: "Basket updated. Cedar Dusk quantity was set to 2.",
               cart: {
                 items: [
                   { productId: "cedar-dusk", name: "Cedar Dusk", quantity: 2 },

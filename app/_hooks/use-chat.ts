@@ -1,63 +1,31 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import type {
-  ActivityLabel,
-  ApprovalProposal,
-  ApprovalRequest,
-  ApprovalResponse,
-  ChatMessage,
-  ChatSuccessResponse,
-} from "@/modules/chat/types";
+import type { ApprovalRequest, ChatMessage } from "@/modules/chat/types";
 import { requestApproval, requestChat } from "@/app/_lib/request";
+import {
+  closePendingProposals,
+  completeReply,
+  recordApprovalReceipt,
+  toChatMessage,
+  type DisplayMessage,
+} from "@/app/_lib/chat-transcript";
 
-export type DisplayApproval = ApprovalProposal & {
-  resolution?: ApprovalResponse;
-};
-
-export type DisplayMessage = ChatMessage & {
-  id: number;
-  isPending?: boolean;
-  activity?: ActivityLabel[];
-  products?: ChatSuccessResponse["products"];
-  productView?: ChatSuccessResponse["productView"];
-  recommendedProductIds?: ChatSuccessResponse["recommendedProductIds"];
-  cart?: ChatSuccessResponse["cart"];
-  approvals?: DisplayApproval[];
-};
-
-function toChatMessage({
-  role,
-  content,
-  products = [],
-  approvals = [],
-}: DisplayMessage): ChatMessage {
-  const context = [content];
-  if (products.length > 0) {
-    const shownProducts = products.map(({ name, id }) => `${name} (ID: ${id})`);
-    context.push(`Catalog products shown: ${shownProducts.join(", ")}.`);
-  }
-
-  const decisions = approvals.flatMap(({ resolution, preview }) => {
-    if (!resolution) {
-      return [];
-    }
-    if (resolution.status === "approved") {
-      return [
-        `The shopper approved the basket change. ${preview.productName} quantity was set to ${preview.quantity}.`,
-      ];
-    }
-    return [
-      `The shopper cancelled the basket change for ${preview.productName}.`,
-    ];
-  });
-  return { role, content: [...context, ...decisions].join("\n") };
+function isNearBottom() {
+  return (
+    document.documentElement.scrollHeight -
+      window.innerHeight -
+      window.scrollY <=
+    120
+  );
 }
 
 export function useChat() {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isDeciding, setIsDeciding] = useState(false);
   const nextMessageId = useRef(0);
   const shouldFollow = useRef(false);
+  const requestInFlight = useRef(false);
   const isPending = messages.at(-1)?.isPending === true;
 
   useLayoutEffect(() => {
@@ -75,7 +43,10 @@ export function useChat() {
 
   async function sendMessage() {
     const content = draft.trim();
-    if (!content || isPending) return;
+    if (!content || requestInFlight.current) {
+      return;
+    }
+    requestInFlight.current = true;
 
     const userMessage: DisplayMessage = {
       id: nextMessageId.current++,
@@ -89,7 +60,7 @@ export function useChat() {
     ];
     shouldFollow.current = true;
     setMessages((current) => [
-      ...current,
+      ...closePendingProposals(current),
       userMessage,
       { id: replyId, role: "assistant", content: "", isPending: true },
     ]);
@@ -109,26 +80,8 @@ export function useChat() {
         );
       });
 
-      const distanceFromBottom =
-        document.documentElement.scrollHeight -
-        window.innerHeight -
-        window.scrollY;
-      shouldFollow.current = distanceFromBottom <= 120;
-      setMessages((current) =>
-        current.map((message) => {
-          if (message.id !== replyId) return message;
-          return {
-            ...message,
-            isPending: false,
-            content: result.content,
-            products: result.products,
-            productView: result.productView,
-            recommendedProductIds: result.recommendedProductIds,
-            cart: result.cart,
-            approvals: result.approvals,
-          };
-        }),
-      );
+      shouldFollow.current = isNearBottom();
+      setMessages((current) => completeReply(current, replyId, result));
     } catch (caught) {
       setMessages((current) => current.filter(({ id }) => id !== replyId));
       setError(
@@ -136,26 +89,29 @@ export function useChat() {
           ? caught.message
           : "Couldn’t get a reply from local Ollama. Check that Ollama is running, then try again.",
       );
+    } finally {
+      requestInFlight.current = false;
     }
   }
 
   async function decideApproval(messageId: number, approval: ApprovalRequest) {
-    const resolution = await requestApproval(approval);
-    setMessages((current) =>
-      current.map((message) => {
-        if (message.id !== messageId) {
-          return message;
-        }
-        return {
-          ...message,
-          approvals: message.approvals?.map((proposal) =>
-            proposal.id === approval.proposalId
-              ? { ...proposal, resolution }
-              : proposal,
-          ),
-        };
-      }),
-    );
+    if (requestInFlight.current) {
+      throw new Error("Wait for the current chat request to finish.");
+    }
+    requestInFlight.current = true;
+    setIsDeciding(true);
+
+    try {
+      const receipt = await requestApproval(approval);
+      const shopperMessageId = nextMessageId.current++;
+      shouldFollow.current = isNearBottom();
+      setMessages((current) =>
+        recordApprovalReceipt(current, messageId, shopperMessageId, receipt),
+      );
+    } finally {
+      requestInFlight.current = false;
+      setIsDeciding(false);
+    }
   }
 
   return {
@@ -163,6 +119,7 @@ export function useChat() {
     draft,
     setDraft,
     isPending,
+    isDeciding,
     error,
     sendMessage,
     decideApproval,

@@ -10,6 +10,7 @@ export default function Home() {
     draft,
     setDraft,
     isPending,
+    isDeciding,
     error,
     sendMessage,
     decideApproval,
@@ -46,6 +47,7 @@ export default function Home() {
               <ChatMessage
                 key={message.id}
                 message={message}
+                isDeciding={isDeciding}
                 onApprovalDecision={decideApproval}
               />
             ))}
@@ -56,6 +58,7 @@ export default function Home() {
       <ChatComposer
         draft={draft}
         isPending={isPending}
+        isDeciding={isDeciding}
         error={error}
         onDraftChange={setDraft}
         onSend={sendMessage}
