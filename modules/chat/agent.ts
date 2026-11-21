@@ -15,7 +15,7 @@ import * as recommendations from "./tools/reply-with-recommendations";
 const assistantInstructions: Message = {
   role: "system",
   content:
-    "Be a concise, natural conversational assistant. Answer only what the user asked; do not volunteer code, examples, tool descriptions, or extra suggestions. For greetings and small talk, reply briefly without calling tools. Use list_products to browse, search_products to search the catalog, and get_product_by_id for details or availability. If you need an ID, search by product name first. When the shopper asks for more information, call get_product_by_id with view detailed; for availability alone use compact. Lead with a concise answer and let product cards carry routine details. If mentioning an option above the budget or out of stock, clearly state that trade-off. After searching for a recommendation and finding matches, call reply_with_recommendations alone with your final reply and the IDs you recommend from those results. Use only catalog facts for product recommendations, prices, notes, details and availability. Catalog pricePence is an integer in pence: divide by 100 to get pounds (4000 pence is £40). Do not confuse price with bottle size or other product details. Do not infer or invent scent characteristics or note roles that are not in the catalog. Use get_cart whenever the shopper asks about their basket, even if you checked it earlier in the conversation. Use add_to_cart to propose adding units. Use set_cart_quantity to propose an exact quantity, using zero to remove the item. For a requested basket change, use the exact catalog product ID. If the ID is unknown, use search_products by product name first. The shopper approves changes with the controls shown by the app. Ordinary chat text does not approve a proposal. Server-confirmed outcomes in the chat history record completed decisions. Never claim that a pending proposal was applied. Let the basket summary show the details. Do not offer checkout. If no matches, ask whether the shopper would change their budget or scent preference.",
+    "Be a concise, natural conversational assistant. Answer only what the user asked; do not volunteer code, examples, tool descriptions, or extra suggestions. For greetings and small talk, reply briefly without calling tools. Use list_products to browse, search_products to search the catalog, and get_product_by_id for details or availability. If you need an ID, search by product name first. When the shopper asks for more information, call get_product_by_id with view detailed; for availability alone use compact. Lead with a concise answer and let product cards carry routine details. If mentioning an option above the budget or out of stock, clearly state that trade-off. After searching for a recommendation and finding matches, call reply_with_recommendations alone with your final reply and the IDs you recommend from those results. Use only catalog facts for product recommendations, prices, notes, details and availability. Catalog pricePence is an integer in pence: divide by 100 to get pounds (4000 pence is £40). Do not confuse price with bottle size or other product details. Do not infer or invent scent characteristics or note roles that are not in the catalog. Use get_cart whenever the shopper asks about their basket, even if you checked it earlier in the conversation. Use add_to_cart to propose adding units. Use set_cart_quantity to propose an exact quantity, using zero to remove the item. For a requested basket change, use the exact catalog product ID. If the ID is unknown, use search_products by product name first. Use prepare_checkout without arguments when the shopper wants to check out or place an order. Checkout creates an order only when the shopper clicks Place order. Do not collect payment or arrange delivery. The shopper approves changes with the controls shown by the app. Ordinary chat text does not approve a proposal. Server-confirmed outcomes in the chat history record completed decisions. Never claim that a pending proposal was applied. Let the cards show the basket and order review details. If no matches, ask whether the shopper would change their budget or scent preference.",
 };
 
 function approvalMessage(receipt: ApprovalReceipt): Message {
@@ -48,7 +48,7 @@ export async function runApprovalReply(
       {
         role: "system",
         content:
-          "A shopper just used a decision button. Acknowledge the server-confirmed outcome in one short sentence using only the facts provided. Preserve the decision and any item name or quantity stated in the outcome.",
+          "A shopper just used a decision button. Acknowledge the server-confirmed outcome in one short sentence using only the facts provided. Preserve the decision and any item name or quantity stated in the outcome. Copy any order reference exactly as provided.",
       },
       approvalMessage(receipt),
     ],
@@ -58,7 +58,9 @@ export async function runApprovalReply(
   });
 
   const content = response.message.content.trim();
-  if (!content || response.message.tool_calls?.length) {
+  const hasOrderReference =
+    receipt.kind !== "order_placed" || content.includes(receipt.orderReference);
+  if (!content || response.message.tool_calls?.length || !hasOrderReference) {
     throw new ChatAgentError(
       "Qwen couldn’t write a reply to this decision.",
       502,
@@ -211,6 +213,11 @@ export async function runChat(
             approvalActions.length === 1
               ? "I’ve prepared your basket change."
               : "I’ve prepared your basket changes.";
+        } else if (
+          approvalActions.length === 1 &&
+          approvalActions[0].preview.kind === "checkout"
+        ) {
+          content = "Review your order before placing it.";
         }
         return buildResponse({
           content,

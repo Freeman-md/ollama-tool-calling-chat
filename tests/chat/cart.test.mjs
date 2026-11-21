@@ -86,11 +86,13 @@ test("streams the server basket for the same guest across turns and isolates a s
       "get_cart",
       "add_to_cart",
       "set_cart_quantity",
+      "prepare_checkout",
     ],
   );
 
   sessions.set(cookie.value, {
     revision: 1,
+    orders: [],
     items: [
       { productId: "cedar-dusk", quantity: 2 },
       { productId: "harbour-classic", quantity: 3 },

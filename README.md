@@ -1,6 +1,6 @@
 # Ollama Tool Calling Chat
 
-A minimal Next.js App Router chat that talks to a local Ollama model. The server offers tools to browse and search the fictional catalog, look up product details, and read a guest basket. Tool arguments are validated with Zod. The catalog contains perfumes, watches, and jewellery, shown as cards with generated product photos when a search finds matches. Product details and availability are fictional.
+A minimal Next.js App Router chat that talks to a local Ollama model. The server offers tools to browse and search the fictional catalog, look up product details, manage a guest basket, and place an order. Tool arguments are validated with Zod. The catalog contains perfumes, watches, and jewellery, shown as cards with generated product photos when a search finds matches. Product details and availability are fictional.
 
 ## Prerequisites
 
@@ -72,7 +72,9 @@ The assistant can search the catalog, show matching products below its reply, an
 
 Ask “What’s in my basket?” to see the basket contents and the GBP total below the reply. To add a product, set its quantity, or remove it, ask in chat and review the proposed quantity and new total. Use **Approve** to apply the change or **Cancel** to keep the basket as it is. The selected button text appears as a shopper message, the original card shows the receipt, and Qwen acknowledges the decision. If the acknowledgement fails, use **Retry reply** to try Qwen again. Sending a normal chat message closes pending proposals, even if the reply fails. Proposals also expire after five minutes. If the basket changed since a proposal was created, ask for the change again.
 
-Each guest starts with an empty basket. A session cookie links requests to the same basket. Restarting the server clears its in-memory baskets and proposals.
+Ask to check out to review the items, quantities, unit prices, and GBP total. **Cancel** keeps the basket as it is. **Place order** rechecks the basket, prices, and availability before saving one order and emptying the basket. The original card shows the order reference. If the review is out of date, ask for a fresh one. Checkout records the order in memory.
+
+Each guest starts with an empty basket. A session cookie links requests to the same basket. Restarting the server clears its in-memory baskets, orders, and proposals.
 
 Valid `POST /api/chat` requests stream newline-delimited JSON. `activity` events carry a shopper-facing label, followed by either a `complete` event with the reply and any product cards, basket snapshot, or pending approvals, or an `error` event. Invalid requests return a JSON error before streaming. Completed activity is available above the reply in a collapsed section. `PATCH /api/chat` takes a proposal ID and an approve or cancel decision and returns the saved receipt as JSON. `POST /api/chat` with `replyToApproval` uses that guest’s receipt for a tool-free acknowledgement. The same receipt provides context for later chat turns.
 

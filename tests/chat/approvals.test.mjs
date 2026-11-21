@@ -97,6 +97,251 @@ async function propose(model, sessionId, name, quantity) {
   return event.data.approvals[0];
 }
 
+async function reviewCheckout(model, sessionId) {
+  const events = await sendToolCalls(
+    model,
+    sessionId,
+    call("prepare_checkout", {}),
+  );
+  const event = events.at(-1);
+  assert.equal(event.type, "complete");
+  assert.equal(event.data.approvals.length, 1);
+  return event.data.approvals[0];
+}
+
+function guestWithBasket() {
+  const sessionId = cartService.resolveGuestSession(undefined);
+  cartService.addToCart(sessionId, { productId, quantity: 2 });
+  cartService.addToCart(sessionId, { productId: "emberwood", quantity: 1 });
+  return sessionId;
+}
+
+test("opens and cancels a priced checkout review without placing an order", async (t) => {
+  const model = mockModel(t);
+  const sessionId = guestWithBasket();
+  const basket = cartService.getCart(sessionId);
+  const revision = cartService.getRevision(sessionId);
+  const proposal = await reviewCheckout(model, sessionId);
+
+  assert.deepEqual(proposal.preview, {
+    kind: "checkout",
+    items: [
+      {
+        productId,
+        name: "Cedar Dusk",
+        quantity: 2,
+        unitPricePence: 4000,
+      },
+      {
+        productId: "emberwood",
+        name: "Emberwood",
+        quantity: 1,
+        unitPricePence: 5500,
+      },
+    ],
+    totalPence: 13500,
+    currency: "GBP",
+  });
+  assert.deepEqual(proposal.buttons, {
+    approve: "Place order",
+    cancel: "Cancel",
+  });
+  assert.deepEqual(cartService.getCart(sessionId), basket);
+  assert.deepEqual(cartService.listOrders(sessionId), []);
+  assert.equal(cartService.getRevision(sessionId), revision);
+
+  const response = await decide(sessionId, proposal.id, "cancel");
+  assert.equal(response.status, 200);
+  const receipt = await response.json();
+  assert.deepEqual(receipt, {
+    kind: "checkout_cancelled",
+    proposalId: proposal.id,
+    buttonLabel: "Cancel",
+    status: "cancelled",
+    outcome: "Checkout cancelled. Your basket is unchanged.",
+  });
+  assert.equal((await decide(sessionId, proposal.id, "approve")).status, 409);
+  assert.deepEqual(cartService.getCart(sessionId), basket);
+  assert.equal(cartService.getRevision(sessionId), revision);
+  assert.deepEqual(cartService.listOrders(sessionId), []);
+  assert.equal(model.mock.callCount(), 1);
+});
+
+test("places one order on concurrent and later approvals and gives Qwen the saved reference", async (t) => {
+  const model = mockModel(t);
+  const sessionId = guestWithBasket();
+  const other = cartService.resolveGuestSession(undefined);
+  const revision = cartService.getRevision(sessionId);
+  const proposal = await reviewCheckout(model, sessionId);
+  assert.equal((await decide(other, proposal.id, "approve")).status, 404);
+
+  const [first, duplicate] = await Promise.all([
+    decide(sessionId, proposal.id, "approve"),
+    decide(sessionId, proposal.id, "approve"),
+  ]);
+  assert.equal(first.status, 200);
+  assert.equal(duplicate.status, 200);
+  const receipt = await first.json();
+  assert.deepEqual(await duplicate.json(), receipt);
+  assert.equal(receipt.kind, "order_placed");
+  assert.equal(receipt.status, "approved");
+  assert.equal(receipt.buttonLabel, "Place order");
+  assert.match(receipt.orderReference, /^ORD-[0-9A-F]{16}$/);
+  assert.deepEqual(cartService.listOrders(sessionId), [
+    {
+      reference: receipt.orderReference,
+      items: proposal.preview.items,
+      totalPence: proposal.preview.totalPence,
+      currency: "GBP",
+    },
+  ]);
+  assert.deepEqual(cartService.getCart(sessionId), emptyCart);
+  assert.equal(cartService.getRevision(sessionId), revision + 1);
+  assert.deepEqual(cartService.listOrders(other), []);
+  assert.equal(model.mock.callCount(), 1);
+
+  model.mock.mockImplementationOnce(async () => ({
+    message: { role: "assistant", content: "Your order was placed." },
+  }));
+  assert.deepEqual(
+    await readEvents(await replyToApproval(sessionId, proposal.id)),
+    [{ type: "error", error: "Qwen couldn’t write a reply to this decision." }],
+  );
+
+  const acknowledgment = `Your order ${receipt.orderReference} was placed.`;
+  model.mock.mockImplementationOnce(async () => ({
+    message: { role: "assistant", content: acknowledgment },
+  }));
+  assert.deepEqual(
+    await readEvents(await replyToApproval(sessionId, proposal.id)),
+    [{ type: "complete", data: { content: acknowledgment } }],
+  );
+  const acknowledgmentRequest = model.mock.calls.at(-1).arguments[0];
+  assert.equal(acknowledgmentRequest.tools, undefined);
+  assert.deepEqual(acknowledgmentRequest.messages.at(-1), {
+    role: "user",
+    content: `Place order\n\nServer-confirmed outcome: ${receipt.outcome}`,
+  });
+
+  cartService.addToCart(sessionId, { productId, quantity: 1 });
+  assert.deepEqual(
+    await (await decide(sessionId, proposal.id, "approve")).json(),
+    receipt,
+  );
+  assert.deepEqual(cartService.getCart(sessionId), cedarDuskCart(1));
+  assert.equal(cartService.listOrders(sessionId).length, 1);
+  assert.equal(model.mock.callCount(), 3);
+});
+
+test("blocks empty baskets, unavailable products, and model-supplied prices during review", async (t) => {
+  const model = mockModel(t);
+  const emptySession = cartService.resolveGuestSession(undefined);
+  const save = t.mock.method(approvalService, "propose");
+  assert.deepEqual(
+    await sendToolCalls(model, emptySession, call("prepare_checkout", {})),
+    [
+      {
+        type: "error",
+        error: "Add an item to your basket before checking out.",
+      },
+    ],
+  );
+  assert.deepEqual(cartService.getCart(emptySession), emptyCart);
+  assert.deepEqual(cartService.listOrders(emptySession), []);
+
+  const sessionId = guestWithBasket();
+  const basket = cartService.getCart(sessionId);
+  assert.deepEqual(
+    await sendToolCalls(
+      model,
+      sessionId,
+      call("prepare_checkout", { totalPence: 1 }),
+    ),
+    [{ type: "error", error: "Request checkout without arguments." }],
+  );
+
+  const product = getProductById(productId);
+  const availability = product.availability;
+  t.after(() => {
+    product.availability = availability;
+  });
+  product.availability = "out_of_stock";
+  assert.deepEqual(
+    await sendToolCalls(model, sessionId, call("prepare_checkout", {})),
+    [{ type: "error", error: "Cedar Dusk is out of stock." }],
+  );
+  assert.deepEqual(cartService.getCart(sessionId), basket);
+  assert.deepEqual(cartService.listOrders(sessionId), []);
+  assert.equal(save.mock.callCount(), 0);
+});
+
+test("rejects checkout after the basket revision changes even if quantities are restored", async (t) => {
+  const sessionId = guestWithBasket();
+  const basket = cartService.getCart(sessionId);
+  const proposal = await reviewCheckout(mockModel(t), sessionId);
+  cartService.addToCart(sessionId, { productId, quantity: 1 });
+  cartService.setCartQuantity(sessionId, { productId, quantity: 2 });
+
+  const response = await decide(sessionId, proposal.id, "approve");
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), {
+    error: "Your basket or catalog changed. Ask for a fresh checkout review.",
+  });
+  assert.deepEqual(cartService.getCart(sessionId), basket);
+  assert.deepEqual(cartService.listOrders(sessionId), []);
+});
+
+test("requires a new checkout review after price or availability changes", async (t) => {
+  const model = mockModel(t);
+  const sessionId = guestWithBasket();
+  const basket = cartService.getCart(sessionId);
+  const cedar = getProductById(productId);
+  const emberwood = getProductById("emberwood");
+  const cedarPrice = cedar.pricePence;
+  const emberwoodPrice = emberwood.pricePence;
+  const availability = cedar.availability;
+  t.after(() => {
+    cedar.pricePence = cedarPrice;
+    emberwood.pricePence = emberwoodPrice;
+    cedar.availability = availability;
+  });
+
+  const pricedReview = await reviewCheckout(model, sessionId);
+  cedar.pricePence += 100;
+  emberwood.pricePence -= 200;
+  assert.deepEqual(cartService.getCart(sessionId), basket);
+  assert.equal(
+    (await decide(sessionId, pricedReview.id, "approve")).status,
+    409,
+  );
+  cedar.pricePence = cedarPrice;
+  emberwood.pricePence = emberwoodPrice;
+  assert.equal(
+    (await decide(sessionId, pricedReview.id, "approve")).status,
+    409,
+  );
+  assert.equal((await replyToApproval(sessionId, pricedReview.id)).status, 404);
+
+  const stockReview = await reviewCheckout(model, sessionId);
+  cedar.availability = "out_of_stock";
+  assert.equal(
+    (await decide(sessionId, stockReview.id, "approve")).status,
+    409,
+  );
+  assert.deepEqual(cartService.getCart(sessionId), basket);
+  assert.deepEqual(cartService.listOrders(sessionId), []);
+  cedar.availability = availability;
+  assert.equal(
+    (await decide(sessionId, stockReview.id, "approve")).status,
+    409,
+  );
+
+  const fresh = await reviewCheckout(model, sessionId);
+  assert.equal((await decide(sessionId, fresh.id, "approve")).status, 200);
+  assert.equal(cartService.listOrders(sessionId).length, 1);
+  assert.deepEqual(cartService.getCart(sessionId), emptyCart);
+});
+
 test("reviews an add without writing and returns one saved result for concurrent and later approvals", async (t) => {
   let now = Date.now();
   t.mock.method(Date, "now", () => now);

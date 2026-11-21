@@ -38,13 +38,13 @@ export type ToolResult = {
 export type ApprovalAction = {
   preview: ApprovalProposal["preview"];
   buttons: ApprovalProposal["buttons"];
-  isCurrent(): boolean;
+  isCurrent?(): boolean;
   execute(): ApprovalResult;
   cancelledReceipt(): ApprovalResult;
 };
 
 export type PreparedApproval = {
-  execute(): ToolResult;
+  execute?(): ToolResult;
   review(): ApprovalAction;
 };
 

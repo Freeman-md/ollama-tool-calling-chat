@@ -1,5 +1,7 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { getProductById } from "@/modules/catalog/service";
+import type { CheckoutReview, Order } from "@/modules/checkout/types";
 import {
   CartQuantitySchema,
   PositiveCartQuantitySchema,
@@ -8,11 +10,16 @@ import {
 } from "./types";
 
 type CartItem = { productId: string; quantity: number };
-type CartState = { items: readonly CartItem[]; revision: number };
+type CartState = {
+  items: readonly CartItem[];
+  revision: number;
+  orders: readonly Order[];
+};
 type CartFailure = { error: string; conflict?: true };
 type CartUpdateResult = { cart: CartSnapshot } | CartFailure;
 export type CartOperation = "add" | "set";
 export type CartReview = { revision: number; preview: BasketChange };
+type ReviewedCheckout = { revision: number; preview: CheckoutReview };
 
 type CartUpdate = {
   items: readonly CartItem[];
@@ -30,6 +37,38 @@ function buildCartSnapshot(cartItems: readonly CartItem[]): CartSnapshot {
     }
     items.push({ productId, name: product.name, quantity });
     totalPence += product.pricePence * quantity;
+  }
+
+  return { items, totalPence, currency: "GBP" };
+}
+
+function buildCheckoutReview(
+  cartItems: readonly CartItem[],
+): CheckoutReview | CartFailure {
+  if (cartItems.length === 0) {
+    return { error: "Add an item to your basket before checking out." };
+  }
+
+  const items: CheckoutReview["items"] = [];
+  let totalPence = 0;
+  for (const { productId, quantity } of cartItems) {
+    const product = getProductById(productId);
+    if (!product) {
+      return { error: "An item in your basket is no longer in the catalog." };
+    }
+    if (product.availability !== "in_stock") {
+      return { error: `${product.name} is out of stock.` };
+    }
+
+    const unitPricePence = product.pricePence;
+    if (!Number.isSafeInteger(unitPricePence) || unitPricePence < 0) {
+      return { error: `${product.name} has an invalid price.` };
+    }
+    items.push({ productId, name: product.name, quantity, unitPricePence });
+    totalPence += unitPricePence * quantity;
+  }
+  if (!Number.isSafeInteger(totalPence)) {
+    return { error: "The basket total is too large to check out." };
   }
 
   return { items, totalPence, currency: "GBP" };
@@ -109,7 +148,8 @@ export function createCartService(sessions = new Map<string, CartState>()) {
     operation: CartOperation,
     review?: CartReview,
   ): CartUpdateResult {
-    const { items, revision } = getCartState(sessionId);
+    const state = getCartState(sessionId);
+    const { items, revision } = state;
     if (review && revision !== review.revision) {
       return {
         error: "Your basket changed. Ask for this change again.",
@@ -135,7 +175,11 @@ export function createCartService(sessions = new Map<string, CartState>()) {
     }
 
     if (items !== update.items) {
-      sessions.set(sessionId, { items: update.items, revision: revision + 1 });
+      sessions.set(sessionId, {
+        ...state,
+        items: update.items,
+        revision: revision + 1,
+      });
     }
     return { cart: update.cart };
   }
@@ -147,7 +191,7 @@ export function createCartService(sessions = new Map<string, CartState>()) {
       }
 
       const sessionId = randomUUID();
-      sessions.set(sessionId, { items: [], revision: 0 });
+      sessions.set(sessionId, { items: [], revision: 0, orders: [] });
       return sessionId;
     },
 
@@ -186,6 +230,49 @@ export function createCartService(sessions = new Map<string, CartState>()) {
       review?: CartReview,
     ): CartUpdateResult {
       return updateQuantity(sessionId, item, "set", review);
+    },
+
+    reviewCheckout(sessionId: string): ReviewedCheckout | CartFailure {
+      const { items, revision } = getCartState(sessionId);
+      const preview = buildCheckoutReview(items);
+      if ("error" in preview) {
+        return preview;
+      }
+      return { revision, preview };
+    },
+
+    placeOrder(
+      sessionId: string,
+      review: ReviewedCheckout,
+    ): { orderReference: string } | { error: string } {
+      const { items, revision, orders } = getCartState(sessionId);
+      const changedReview = {
+        error:
+          "Your basket or catalog changed. Ask for a fresh checkout review.",
+      };
+      if (revision !== review.revision) {
+        return changedReview;
+      }
+
+      const current = buildCheckoutReview(items);
+      if ("error" in current || !isDeepStrictEqual(current, review.preview)) {
+        return changedReview;
+      }
+
+      const order = {
+        ...current,
+        reference: `ORD-${randomBytes(8).toString("hex").toUpperCase()}`,
+      };
+      sessions.set(sessionId, {
+        items: [],
+        revision: revision + 1,
+        orders: [...orders, order],
+      });
+      return { orderReference: order.reference };
+    },
+
+    listOrders(sessionId: string): readonly Order[] {
+      return structuredClone(getCartState(sessionId).orders);
     },
   };
 }

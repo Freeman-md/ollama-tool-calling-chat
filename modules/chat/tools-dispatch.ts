@@ -14,6 +14,7 @@ import * as getProductById from "./tools/get-product-by-id";
 import * as getCart from "./tools/cart/get-cart";
 import * as addToCart from "./tools/cart/add-to-cart";
 import * as setCartQuantity from "./tools/cart/set-cart-quantity";
+import * as prepareCheckout from "./tools/cart/prepare-checkout";
 
 export type ToolRegistry = Readonly<Record<string, ToolRegistration>>;
 
@@ -33,6 +34,7 @@ export function getToolRegistry(guestSessionId?: string): ToolRegistry {
     [getCart.name]: getCart.forGuestSession(guestSessionId),
     [addToCart.name]: addToCart.forGuestSession(guestSessionId),
     [setCartQuantity.name]: setCartQuantity.forGuestSession(guestSessionId),
+    [prepareCheckout.name]: prepareCheckout.forGuestSession(guestSessionId),
   };
 }
 

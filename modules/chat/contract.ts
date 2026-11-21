@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { BasketChangeSchema, CartSnapshotSchema } from "@/modules/cart/types";
 import { ProductSchema } from "@/modules/catalog/types";
+import { CheckoutReviewSchema } from "@/modules/checkout/types";
 
 export const ChatMessageSchema = z.discriminatedUnion("role", [
   z.object({
@@ -27,6 +28,7 @@ export const ApprovalProposalSchema = z.object({
   buttons: z.object({ approve: z.string().min(1), cancel: z.string().min(1) }),
   preview: z.discriminatedUnion("kind", [
     BasketChangeSchema.extend({ kind: z.literal("basket_change") }),
+    CheckoutReviewSchema.extend({ kind: z.literal("checkout") }),
     z.object({
       kind: z.literal("read"),
       title: z.string(),
@@ -46,6 +48,12 @@ export const ApprovalResultSchema = z.discriminatedUnion("kind", [
     outcome: z.string(),
     cart: CartSnapshotSchema,
   }),
+  z.object({
+    kind: z.literal("order_placed"),
+    outcome: z.string(),
+    orderReference: z.string().min(1),
+  }),
+  z.object({ kind: z.literal("checkout_cancelled"), outcome: z.string() }),
   z.object({ kind: z.literal("read"), outcome: z.string() }),
 ]);
 

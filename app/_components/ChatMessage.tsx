@@ -26,10 +26,11 @@ export function ChatMessage({
   const recommendedProductIds = message.recommendedProductIds ?? [];
   const hasProducts = products.length > 0;
   const isPending = message.isPending === true;
-  const hasBasketDecision = message.approvals?.some(
-    ({ receipt }) => receipt?.kind === "basket_change",
+  const hasBasketUpdate = message.approvals?.some(
+    ({ receipt }) =>
+      receipt?.kind === "basket_change" || receipt?.kind === "order_placed",
   );
-  const basket = hasBasketDecision ? undefined : message.cart;
+  const basket = hasBasketUpdate ? undefined : message.cart;
   const messageClass = `message ${message.role}`;
 
   function handleApprovalDecision(approval: ApprovalRequest) {

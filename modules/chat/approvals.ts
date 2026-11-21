@@ -14,7 +14,10 @@ export type ApprovalTurn = Readonly<{ sessionId: string }>;
 type StoredProposal = {
   turn: ApprovalTurn;
   expiresAt: number;
-  state: { status: "pending"; action: ApprovalAction } | ApprovalReceipt;
+  state:
+    | { status: "pending"; action: ApprovalAction }
+    | { status: "closed"; error: ToolDispatchError }
+    | ApprovalReceipt;
 };
 
 const activeTurns = new Map<string, ApprovalTurn>();
@@ -61,7 +64,8 @@ export const approvalService = {
     if (
       !proposal ||
       proposal.turn.sessionId !== sessionId ||
-      proposal.state.status === "pending"
+      (proposal.state.status !== "approved" &&
+        proposal.state.status !== "cancelled")
     ) {
       return undefined;
     }
@@ -79,6 +83,9 @@ export const approvalService = {
 
     const { state } = proposal;
     const status = decision === "approve" ? "approved" : "cancelled";
+    if (state.status === "closed") {
+      throw state.error;
+    }
     if (state.status !== "pending") {
       if (state.status === status) {
         return state;
@@ -102,25 +109,33 @@ export const approvalService = {
         410,
       );
     }
-    if (!state.action.isCurrent()) {
-      throw new ToolDispatchError(
-        "This change is out of date. Ask for it again.",
-        409,
-      );
-    }
+    try {
+      if (state.action.isCurrent?.() === false) {
+        throw new ToolDispatchError(
+          "This change is out of date. Ask for it again.",
+          409,
+        );
+      }
 
-    // Capture the receipt in the same synchronous turn so retries can replay it.
-    const result =
-      decision === "approve"
-        ? state.action.execute()
-        : state.action.cancelledReceipt();
-    const receipt: ApprovalReceipt = {
-      ...result,
-      proposalId,
-      buttonLabel: state.action.buttons[decision],
-      status,
-    };
-    proposal.state = receipt;
-    return receipt;
+      // Capture the receipt in the same synchronous turn so retries can replay it.
+      const result =
+        decision === "approve"
+          ? state.action.execute()
+          : state.action.cancelledReceipt();
+      const receipt: ApprovalReceipt = {
+        ...result,
+        proposalId,
+        buttonLabel: state.action.buttons[decision],
+        status,
+      };
+      proposal.state = receipt;
+      return receipt;
+    } catch (error) {
+      if (error instanceof ToolDispatchError && error.status === 409) {
+        // A review that failed validation needs a new proposal, even if prices revert.
+        proposal.state = { status: "closed", error };
+      }
+      throw error;
+    }
   },
 };

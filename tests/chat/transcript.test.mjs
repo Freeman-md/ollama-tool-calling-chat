@@ -95,6 +95,56 @@ test("records each receipt and appends exactly one button label and pending repl
   }
 });
 
+test("shows the checkout prices and records one shopper message for a replayed order receipt", () => {
+  const items = [{ productId: "cedar-dusk", name: "Cedar Dusk", quantity: 2 }];
+  const cart = { items, totalPence: 8000, currency: "GBP" };
+  const proposal = {
+    id: randomUUID(),
+    expiresAt: Date.now() + 300000,
+    buttons: { approve: "Place order", cancel: "Cancel" },
+    preview: {
+      kind: "checkout",
+      ...cart,
+      items: [{ ...items[0], unitPricePence: 4000 }],
+    },
+  };
+  const reply = { ...assistantReply(proposal), cart };
+  const review = renderMessage(assistantReply(proposal));
+  assert.match(review, /aria-label="Checkout"/);
+  assert.match(
+    review,
+    /Cedar Dusk<\/span><span[^>]*>Quantity 2 · £40\.00 each/,
+  );
+  assert.match(review, /Total<\/span><strong>£80\.00<\/strong>/);
+  assert.match(review, /<button[^>]*>Cancel<\/button>/);
+  assert.match(review, /<button[^>]*>Place order<\/button>/);
+
+  const receipt = {
+    kind: "order_placed",
+    buttonLabel: "Place order",
+    status: "approved",
+    proposalId: proposal.id,
+    orderReference: "ORD-1234567890ABCDEF",
+    outcome: "Order ORD-1234567890ABCDEF was placed. Your basket is empty.",
+  };
+  const messages = recordApprovalReceipt([reply], reply.id, 2, 3, receipt);
+  assert.strictEqual(
+    recordApprovalReceipt(messages, reply.id, 4, 5, receipt),
+    messages,
+  );
+  assert.equal(
+    renderMessage(messages[1]),
+    '<article class="message user"><p>Place order</p></article>',
+  );
+  assert.equal(messages.length, 3);
+  const confirmed = renderMessage(messages[0]);
+  assert.match(
+    confirmed,
+    /role="status">Order ORD-1234567890ABCDEF was placed/,
+  );
+  assert.doesNotMatch(confirmed, /aria-label="Basket"|<button/);
+});
+
 test("a failed reply preserves the receipt and retries in the same assistant slot", () => {
   const proposal = readProposal();
   const reply = assistantReply(proposal);
