@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import ollama from "ollama";
 import { runChat } from "@/modules/chat/agent";
-import { dispatchToolCalls, ollamaTools } from "@/modules/chat/tools-dispatch";
+import {
+  dispatchToolCalls,
+  getToolRegistry,
+} from "@/modules/chat/tools-dispatch";
 import { tool as listTool } from "@/modules/chat/tools/list-products";
 import { tool as searchTool } from "@/modules/chat/tools/search-products";
 
@@ -10,11 +13,12 @@ const call = (name, arguments_) => ({
   function: { name, arguments: arguments_ },
 });
 
-test("advertises the three product tools", () => {
-  assert.deepEqual(
-    ollamaTools.map((tool) => tool.function.name),
-    ["list_products", "search_products", "get_product_by_id"],
-  );
+test("registers the three product tools without a guest session", () => {
+  assert.deepEqual(Object.keys(getToolRegistry()), [
+    "list_products",
+    "search_products",
+    "get_product_by_id",
+  ]);
 });
 
 test("lists, searches and fetches catalog products with their details", () => {

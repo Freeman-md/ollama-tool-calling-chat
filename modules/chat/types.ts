@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Tool } from "ollama";
+import type { CartSnapshot } from "@/modules/cart/types";
 import type { Product } from "@/modules/catalog/types";
 import type {
   ChatErrorResponseSchema,
@@ -19,9 +20,10 @@ export type ChatStreamEvent = z.infer<typeof ChatStreamEventSchema>;
 
 export type ToolResult = {
   content: string;
-  products: Product[];
+  products?: Product[];
   eligibleProducts?: Product[];
   productView?: ChatSuccessResponse["productView"];
+  cart?: CartSnapshot;
 };
 export type ToolRegistration = {
   definition: Tool;

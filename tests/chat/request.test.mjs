@@ -18,8 +18,10 @@ function streamResponse(chunks) {
 }
 
 test("reads split UTF-8 lines and returns the validated final response", async (t) => {
+  const cart = { items: [], totalPence: 0, currency: "GBP" };
   const text = [
     { type: "activity", label: "Searching products…" },
+    { type: "activity", label: "Checking your basket…" },
     {
       type: "complete",
       data: {
@@ -27,6 +29,7 @@ test("reads split UTF-8 lines and returns the validated final response", async (
         products: [],
         recommendedProductIds: [],
         productView: "detailed",
+        cart,
       },
     },
   ]
@@ -48,8 +51,9 @@ test("reads split UTF-8 lines and returns the validated final response", async (
     products: [],
     recommendedProductIds: [],
     productView: "detailed",
+    cart,
   });
-  assert.deepEqual(steps, ["Searching products…"]);
+  assert.deepEqual(steps, ["Searching products…", "Checking your basket…"]);
   assert.equal(fetch.mock.calls[0].arguments[0], "/api/chat");
   assert.deepEqual(JSON.parse(fetch.mock.calls[0].arguments[1].body), {
     messages,

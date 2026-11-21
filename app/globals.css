@@ -175,6 +175,49 @@ textarea {
 .assistant-activity + .assistant-reply {
   margin-top: 6px;
 }
+.basket-summary {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  font-size: 14px;
+  margin-top: 16px;
+  max-width: 420px;
+  padding: 14px 16px;
+}
+.basket-summary h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+.basket-items {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.basket-row {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+.basket-quantity,
+.message .basket-empty {
+  color: #6c6963;
+}
+.basket-quantity {
+  flex-shrink: 0;
+}
+.message .basket-empty,
+.message .basket-total {
+  font-size: inherit;
+  line-height: 1.5;
+}
+.message .basket-total {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+  padding-top: 10px;
+}
 .catalog-matches {
   margin-top: 22px;
 }

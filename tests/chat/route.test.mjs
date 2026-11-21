@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { NextRequest } from "next/server";
 import ollama from "ollama";
 import { POST } from "@/app/api/chat/route";
+
 test("returns validated product records including availability and details", async (t) => {
   const responses = [
     {
@@ -22,7 +24,7 @@ test("returns validated product records including availability and details", asy
   ];
   t.mock.method(ollama, "chat", async () => responses.shift());
   const response = await POST(
-    new Request("http://localhost/api/chat", {
+    new NextRequest("http://localhost/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -75,7 +77,7 @@ test("returns recommended product IDs with the searched products", async (t) => 
   ];
   const chat = t.mock.method(ollama, "chat", async () => responses.shift());
   const response = await POST(
-    new Request("http://localhost/api/chat", {
+    new NextRequest("http://localhost/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -93,6 +95,7 @@ test("returns recommended product IDs with the searched products", async (t) => 
     ["cedar-dusk", "emberwood"],
   );
   assert.deepEqual(body.recommendedProductIds, ["cedar-dusk"]);
+  assert.equal("cart" in body, false);
   assert.equal(chat.mock.callCount(), 2);
 });
 
@@ -121,7 +124,7 @@ test("streams activity before the final response is ready", async (t) => {
     calls.length ? calls.shift() : pending,
   );
   const response = await POST(
-    new Request("http://localhost/api/chat", {
+    new NextRequest("http://localhost/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -163,7 +166,7 @@ test("streams an error after emitted activity", async (t) => {
     throw new Error("internal model failure");
   });
   const response = await POST(
-    new Request("http://localhost/api/chat", {
+    new NextRequest("http://localhost/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -183,14 +186,15 @@ test("streams an error after emitted activity", async (t) => {
 
 test("returns JSON validation errors before starting the stream", async () => {
   const invalidJson = await POST(
-    new Request("http://localhost/api/chat", { method: "POST", body: "{" }),
+    new NextRequest("http://localhost/api/chat", { method: "POST", body: "{" }),
   );
   assert.equal(invalidJson.status, 400);
+  assert.equal(invalidJson.headers.has("Set-Cookie"), false);
   assert.deepEqual(await invalidJson.json(), {
     error: "Request body must be valid JSON.",
   });
   const invalidHistory = await POST(
-    new Request("http://localhost/api/chat", {
+    new NextRequest("http://localhost/api/chat", {
       method: "POST",
       body: JSON.stringify({ messages: [] }),
     }),

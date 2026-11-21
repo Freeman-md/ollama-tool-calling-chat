@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CartSnapshotSchema } from "@/modules/cart/types";
 import { ProductSchema } from "@/modules/catalog/types";
 
 export const ChatMessageSchema = z.object({
@@ -19,6 +20,7 @@ export const ChatSuccessResponseSchema = z.object({
   products: z.array(ProductSchema).optional(),
   productView: ProductViewSchema.optional(),
   recommendedProductIds: z.array(z.string()).optional(),
+  cart: CartSnapshotSchema.optional(),
 });
 
 export const ChatErrorResponseSchema = z.object({
@@ -29,6 +31,7 @@ export const ActivityLabelSchema = z.enum([
   "Browsing the catalog…",
   "Searching products…",
   "Checking product details…",
+  "Checking your basket…",
 ]);
 
 export const ChatStreamEventSchema = z.discriminatedUnion("type", [

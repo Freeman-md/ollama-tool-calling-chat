@@ -1,6 +1,6 @@
 # Ollama Tool Calling Chat
 
-A minimal Next.js App Router chat that talks to a local Ollama model. The server offers `list_products`, `search_products`, and `get_product_by_id`, validating tool arguments with Zod. The fictional catalog contains perfumes, watches, and jewellery, shown as cards with generated product photos when a search finds matches. Product details and availability are fictional.
+A minimal Next.js App Router chat that talks to a local Ollama model. The server offers tools to browse and search the fictional catalog, look up product details, and read a guest basket. Tool arguments are validated with Zod. The catalog contains perfumes, watches, and jewellery, shown as cards with generated product photos when a search finds matches. Product details and availability are fictional.
 
 ## Prerequisites
 
@@ -70,7 +70,9 @@ What woody fragrances do you have?
 
 The assistant can search the catalog, show matching products below its reply, and highlight its recommendations. Cards show a compact summary by default; a detailed product lookup can show the description and full specifications. Highlights are limited to products in both the latest search and the displayed cards.
 
-Valid `POST /api/chat` requests stream newline-delimited JSON: `activity` events carry a shopper-facing label, followed by either a `complete` event with the reply and product cards or an `error` event. Invalid requests still return a JSON error before streaming. Completed activity is available below the reply in a collapsed section.
+Ask “What’s in my basket?” to try `get_cart`. The chat shows a summary below the reply with the basket contents and the GBP total. Each guest starts with an empty, read-only basket. A session cookie links requests to the same basket while it is stored in the running server's memory.
+
+Valid `POST /api/chat` requests stream newline-delimited JSON. `activity` events carry a shopper-facing label, followed by either a `complete` event with the reply and any product cards or basket snapshot, or an `error` event. Invalid requests return a JSON error before streaming. Completed activity is available above the reply in a collapsed section.
 
 ### Product catalog conversation
 

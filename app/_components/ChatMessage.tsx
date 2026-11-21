@@ -1,6 +1,7 @@
 import Markdown from "react-markdown";
 import type { DisplayMessage } from "@/app/_hooks/use-chat";
 import { AssistantActivity } from "./AssistantActivity";
+import { BasketSummary } from "./BasketSummary";
 import { ProductCard } from "./ProductCard";
 
 export function ChatMessage({ message }: { message: DisplayMessage }) {
@@ -32,6 +33,7 @@ export function ChatMessage({ message }: { message: DisplayMessage }) {
             </div>
           </div>
         )}
+        {!isPending && message.cart && <BasketSummary cart={message.cart} />}
         {hasProducts && (
           <section className="catalog-matches" aria-label="Products">
             <h2>Products</h2>

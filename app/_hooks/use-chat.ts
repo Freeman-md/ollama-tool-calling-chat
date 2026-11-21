@@ -13,6 +13,7 @@ export type DisplayMessage = ChatMessage & {
   products?: ChatSuccessResponse["products"];
   productView?: ChatSuccessResponse["productView"];
   recommendedProductIds?: ChatSuccessResponse["recommendedProductIds"];
+  cart?: ChatSuccessResponse["cart"];
 };
 
 export function useChat() {
@@ -90,6 +91,7 @@ export function useChat() {
             products: result.products,
             productView: result.productView,
             recommendedProductIds: result.recommendedProductIds,
+            cart: result.cart,
           };
         }),
       );
