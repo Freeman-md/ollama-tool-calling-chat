@@ -8,6 +8,7 @@ import {
   closePendingProposals,
   completeReply,
   recordApprovalReceipt,
+  setApprovalReplyState,
   toChatMessage,
 } from "@/app/_lib/chat-transcript";
 
@@ -35,11 +36,11 @@ function assistantReply(proposal) {
 
 function renderMessage(message) {
   return renderToStaticMarkup(
-    createElement(ChatMessage, { message, isDeciding: false }),
+    createElement(ChatMessage, { message, isBusy: false }),
   );
 }
 
-test("records each server receipt on the original card and appends its exact button label once", () => {
+test("records each receipt and appends exactly one button label and pending reply", () => {
   for (const [decision, status] of [
     ["approve", "approved"],
     ["cancel", "cancelled"],
@@ -53,7 +54,7 @@ test("records each server receipt on the original card and appends its exact but
       buttonLabel: proposal.buttons[decision],
       outcome: "Server confirmed the decision.",
     };
-    const messages = recordApprovalReceipt([reply], reply.id, 2, receipt);
+    const messages = recordApprovalReceipt([reply], reply.id, 2, 3, receipt);
     assert.deepEqual(messages[0].approvals[0].receipt, receipt);
     assert.deepEqual(messages[1], {
       id: 2,
@@ -61,9 +62,16 @@ test("records each server receipt on the original card and appends its exact but
       content: proposal.buttons[decision],
       approvalProposalId: proposal.id,
     });
-    assert.equal(messages.length, 2);
+    assert.deepEqual(messages[2], {
+      id: 3,
+      role: "assistant",
+      content: "",
+      isPending: true,
+      approvalReplyFor: proposal.id,
+    });
+    assert.equal(messages.length, 3);
     assert.strictEqual(
-      recordApprovalReceipt(messages, reply.id, 3, receipt),
+      recordApprovalReceipt(messages, reply.id, 4, 5, receipt),
       messages,
     );
     assert.deepEqual(closePendingProposals(messages), messages);
@@ -82,8 +90,44 @@ test("records each server receipt on the original card and appends its exact but
         content: proposal.buttons[decision],
         approvalProposalId: proposal.id,
       },
+      { role: "assistant", content: "" },
     ]);
   }
+});
+
+test("a failed reply preserves the receipt and retries in the same assistant slot", () => {
+  const proposal = readProposal();
+  const reply = assistantReply(proposal);
+  const receipt = {
+    kind: "read",
+    proposalId: proposal.id,
+    status: "approved",
+    buttonLabel: proposal.buttons.approve,
+    outcome: "Collection details were shared.",
+  };
+  const messages = recordApprovalReceipt([reply], reply.id, 2, 3, receipt);
+  const failed = setApprovalReplyState(messages, 3, {
+    isPending: false,
+    replyError: "Ollama is offline.",
+  });
+  assert.deepEqual(failed.slice(0, 2), messages.slice(0, 2));
+  assert.match(
+    renderMessage(failed[2]),
+    /role="alert">Ollama is offline\.[\s\S]*<button[^>]*>Retry reply<\/button>/,
+  );
+  const retry = setApprovalReplyState(failed, 3, { isPending: true });
+  assert.equal(retry[2].approvalReplyFor, proposal.id);
+  assert.equal(retry[2].replyError, undefined);
+  const complete = completeReply(retry, 3, {
+    content: "The collection details are now visible.",
+  });
+  assert.equal(complete.length, 3);
+  assert.deepEqual(complete.slice(0, 2), messages.slice(0, 2));
+  assert.equal(complete[2].id, 3);
+  assert.match(
+    renderMessage(complete[2]),
+    /The collection details are now visible\./,
+  );
 });
 
 test("leaves closed previews visible with both configured buttons disabled", () => {

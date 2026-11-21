@@ -15,6 +15,10 @@ export const ChatRequestSchema = z.object({
   messages: z.array(ChatMessageSchema).min(1),
 });
 
+export const ApprovalReplyRequestSchema = z.strictObject({
+  replyToApproval: z.uuid(),
+});
+
 export const ProductViewSchema = z.enum(["compact", "detailed"]);
 
 export const ApprovalProposalSchema = z.object({

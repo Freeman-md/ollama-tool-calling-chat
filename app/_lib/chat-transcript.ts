@@ -14,6 +14,8 @@ export type DisplayApproval = ApprovalProposal & {
 export type DisplayMessage = ChatMessage & {
   id: number;
   isPending?: boolean;
+  approvalReplyFor?: string;
+  replyError?: string;
   activity?: ActivityLabel[];
   products?: ChatSuccessResponse["products"];
   productView?: ChatSuccessResponse["productView"];
@@ -94,19 +96,20 @@ export function completeReply(
 
 export function recordApprovalReceipt(
   messages: DisplayMessage[],
-  replyId: number,
+  proposalMessageId: number,
   shopperMessageId: number,
+  replyId: number,
   receipt: ApprovalReceipt,
 ): DisplayMessage[] {
   const proposal = messages
-    .find(({ id }) => id === replyId)
+    .find(({ id }) => id === proposalMessageId)
     ?.approvals?.find(({ id }) => id === receipt.proposalId);
   if (!proposal || proposal.receipt) {
     return messages;
   }
 
   const updated = messages.map((message) => {
-    if (message.id !== replyId) {
+    if (message.id !== proposalMessageId) {
       return message;
     }
     return {
@@ -126,5 +129,25 @@ export function recordApprovalReceipt(
       content: receipt.buttonLabel,
       approvalProposalId: receipt.proposalId,
     },
+    {
+      id: replyId,
+      role: "assistant",
+      content: "",
+      isPending: true,
+      approvalReplyFor: receipt.proposalId,
+    },
   ];
+}
+
+export function setApprovalReplyState(
+  messages: DisplayMessage[],
+  replyId: number,
+  { isPending, replyError }: { isPending: boolean; replyError?: string },
+): DisplayMessage[] {
+  return messages.map((message) => {
+    if (message.id !== replyId || !message.approvalReplyFor) {
+      return message;
+    }
+    return { ...message, isPending, replyError };
+  });
 }

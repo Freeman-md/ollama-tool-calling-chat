@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
-import { requestApproval, requestChat } from "@/app/_lib/request";
+import {
+  requestApproval,
+  requestApprovalReply,
+  requestChat,
+} from "@/app/_lib/request";
 
 const messages = [{ role: "user", content: "Hello" }];
 const unavailable =
@@ -138,6 +142,38 @@ test("surfaces pre-stream and midstream errors after progress", async (t) => {
     { message: "Search failed." },
   );
   assert.deepEqual(steps, ["Searching products…"]);
+});
+
+test("requests and retries just the approval reply through the chat stream", async (t) => {
+  const proposalId = randomUUID();
+  const encoder = new TextEncoder();
+  const fetch = t.mock.method(globalThis, "fetch", async () =>
+    streamResponse([
+      encoder.encode('{"type":"error","error":"Ollama is unavailable."}\n'),
+    ]),
+  );
+  await assert.rejects(requestApprovalReply(proposalId), {
+    message: "Ollama is unavailable.",
+  });
+
+  fetch.mock.mockImplementation(async () =>
+    streamResponse([
+      encoder.encode(
+        '{"type":"complete","data":{"content":"The change was cancelled."}}\n',
+      ),
+    ]),
+  );
+  assert.deepEqual(await requestApprovalReply(proposalId), {
+    content: "The change was cancelled.",
+  });
+  assert.equal(fetch.mock.callCount(), 2);
+  for (const {
+    arguments: [url, options],
+  } of fetch.mock.calls) {
+    assert.equal(url, "/api/chat");
+    assert.equal(options.method, "POST");
+    assert.deepEqual(JSON.parse(options.body), { replyToApproval: proposalId });
+  }
 });
 
 test("rejects invalid events and connections that end before completion", async (t) => {

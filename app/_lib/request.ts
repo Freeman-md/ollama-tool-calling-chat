@@ -1,4 +1,5 @@
 import {
+  ApprovalReplyRequestSchema,
   ApprovalRequestSchema,
   ApprovalResponseSchema,
   ChatErrorResponseSchema,
@@ -8,8 +9,10 @@ import {
 import type {
   ActivityLabel,
   ApprovalReceipt,
+  ApprovalReplyRequest,
   ApprovalRequest,
   ChatMessage,
+  ChatRequest,
   ChatSuccessResponse,
 } from "@/modules/chat/types";
 
@@ -69,7 +72,21 @@ export async function requestChat(
   messages: ChatMessage[],
   onActivity?: (label: ActivityLabel) => void,
 ): Promise<ChatSuccessResponse> {
-  const requestBody = ChatRequestSchema.parse({ messages });
+  return requestChatStream(ChatRequestSchema.parse({ messages }), onActivity);
+}
+
+export async function requestApprovalReply(
+  proposalId: string,
+): Promise<ChatSuccessResponse> {
+  return requestChatStream(
+    ApprovalReplyRequestSchema.parse({ replyToApproval: proposalId }),
+  );
+}
+
+async function requestChatStream(
+  requestBody: ChatRequest | ApprovalReplyRequest,
+  onActivity?: (label: ActivityLabel) => void,
+): Promise<ChatSuccessResponse> {
   let response: Response;
 
   try {

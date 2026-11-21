@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { cartService } from "@/modules/cart/service";
 import { approvalService } from "@/modules/chat/approvals";
 import {
+  ApprovalReplyRequestSchema,
   ApprovalRequestSchema,
   ApprovalResponseSchema,
   ChatErrorResponseSchema,
@@ -9,12 +10,13 @@ import {
   ChatStreamEventSchema,
 } from "@/modules/chat/contract";
 import type {
+  ActivityLabel,
   ChatErrorResponse,
-  ChatRequest,
   ChatStreamEvent,
+  ChatSuccessResponse,
 } from "@/modules/chat/types";
 import { ChatAgentError, ToolDispatchError } from "@/modules/chat/errors";
-import { runChat } from "@/modules/chat/agent";
+import { runApprovalReply, runChat } from "@/modules/chat/agent";
 
 const guestSessionCookie = "guest_session";
 
@@ -63,23 +65,11 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return errorResponse("Request body must be valid JSON.", 400);
-  }
-
-  const parsedRequest = ChatRequestSchema.safeParse(body);
-  if (!parsedRequest.success) {
-    return errorResponse("Messages must be a non-empty chat history.", 400);
-  }
-
-  const chatRequest: ChatRequest = parsedRequest.data;
-  const cookieSessionId = request.cookies.get(guestSessionCookie)?.value;
-  const guestSessionId = cartService.resolveGuestSession(cookieSessionId);
-  const turn = approvalService.beginTurn(guestSessionId);
+function streamReply(
+  generateReply: (
+    onActivity: (label: ActivityLabel) => void,
+  ) => Promise<ChatSuccessResponse>,
+) {
   const encoder = new TextEncoder();
   let cancelled = false;
   const stream = new ReadableStream<Uint8Array>({
@@ -92,12 +82,9 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const result = await runChat(chatRequest.messages, {
-          turn,
-          onActivity(label) {
-            send({ type: "activity", label });
-          },
-        });
+        const result = await generateReply((label) =>
+          send({ type: "activity", label }),
+        );
         send({ type: "complete", data: result });
       } catch (error) {
         const message =
@@ -116,12 +103,51 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  const response = new NextResponse(stream, {
+  return new NextResponse(stream, {
     headers: {
       "Content-Type": "application/x-ndjson; charset=utf-8",
       "Cache-Control": "no-store",
     },
   });
+}
+
+export async function POST(request: NextRequest) {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return errorResponse("Request body must be valid JSON.", 400);
+  }
+
+  const cookieSessionId = request.cookies.get(guestSessionCookie)?.value;
+  if (body && typeof body === "object" && "replyToApproval" in body) {
+    const followUp = ApprovalReplyRequestSchema.safeParse(body);
+    if (!followUp.success) {
+      return errorResponse("Provide a valid decision reference.", 400);
+    }
+    const receipt =
+      cookieSessionId === undefined
+        ? undefined
+        : approvalService.getReceipt(
+            cookieSessionId,
+            followUp.data.replyToApproval,
+          );
+    if (!receipt) {
+      return errorResponse("This decision could not be found.", 404);
+    }
+    return streamReply(() => runApprovalReply(receipt));
+  }
+
+  const chatRequest = ChatRequestSchema.safeParse(body);
+  if (!chatRequest.success) {
+    return errorResponse("Messages must be a non-empty chat history.", 400);
+  }
+
+  const guestSessionId = cartService.resolveGuestSession(cookieSessionId);
+  const turn = approvalService.beginTurn(guestSessionId);
+  const response = streamReply((onActivity) =>
+    runChat(chatRequest.data.messages, { turn, onActivity }),
+  );
   if (guestSessionId !== cookieSessionId) {
     response.cookies.set(guestSessionCookie, guestSessionId, {
       httpOnly: true,

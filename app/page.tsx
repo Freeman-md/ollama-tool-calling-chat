@@ -14,9 +14,11 @@ export default function Home() {
     error,
     sendMessage,
     decideApproval,
+    retryApprovalReply,
   } = useChat();
   const transcriptClass = `transcript ${messages.length ? "has-messages" : ""}`;
   const isEmpty = messages.length === 0;
+  const isBusy = isDeciding || isPending;
 
   return (
     <main className="chat-shell">
@@ -47,8 +49,9 @@ export default function Home() {
               <ChatMessage
                 key={message.id}
                 message={message}
-                isDeciding={isDeciding}
+                isBusy={isBusy}
                 onApprovalDecision={decideApproval}
+                onRetryApprovalReply={retryApprovalReply}
               />
             ))}
           </div>

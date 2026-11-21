@@ -175,6 +175,25 @@ textarea {
 .assistant-activity + .assistant-reply {
   margin-top: 6px;
 }
+.message .approval-reply-error {
+  color: #a4372c;
+  font-size: 14px;
+}
+.approval-reply-retry {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 13px;
+  margin-top: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+}
+.approval-reply-retry:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
 .basket-summary {
   background: #fff;
   border: 1px solid var(--line);

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import test from "node:test";
 import { NextRequest } from "next/server";
 import ollama from "ollama";
@@ -69,6 +70,10 @@ async function readEvents(response) {
 
 function sendTurn(sessionId, messages) {
   return POST(request("POST", sessionId, { messages }));
+}
+
+function replyToApproval(sessionId, proposalId) {
+  return POST(request("POST", sessionId, { replyToApproval: proposalId }));
 }
 
 async function sendToolCalls(model, sessionId, ...toolCalls) {
@@ -478,7 +483,7 @@ test("a model reply from a superseded turn cannot save an actionable proposal", 
   assert.deepEqual(cartService.getCart(sessionId), cedarDuskCart(2));
 });
 
-test("both decisions record exact labels and send server receipts to Qwen on the next chat turn", async (t) => {
+test("both decisions send the saved receipt to a tool-free reply and later chat turns", async (t) => {
   const model = mockModel(t);
 
   for (const decision of ["approve", "cancel"]) {
@@ -492,6 +497,27 @@ test("both decisions record exact labels and send server receipts to Qwen on the
     assert.deepEqual(receipt, basketReceipt(proposal.id, decision, quantity));
     assert.equal(receipt.buttonLabel, proposal.buttons[decision]);
     assert.equal(model.mock.callCount(), callsBeforeDecision);
+
+    const outcomeMessage = {
+      role: "user",
+      content: `${receipt.buttonLabel}\n\nServer-confirmed outcome: ${receipt.outcome}`,
+    };
+    const acknowledgment =
+      decision === "approve"
+        ? "Your basket now has two Cedar Dusk."
+        : "The change was cancelled.";
+    model.mock.mockImplementationOnce(async () => ({
+      message: { role: "assistant", content: acknowledgment },
+    }));
+    const reply = await replyToApproval(sessionId, proposal.id);
+    assert.match(reply.headers.get("Content-Type"), /application\/x-ndjson/);
+    assert.deepEqual(await readEvents(reply), [
+      { type: "complete", data: { content: acknowledgment } },
+    ]);
+    const acknowledgmentRequest = model.mock.calls.at(-1).arguments[0];
+    assert.equal(acknowledgmentRequest.tools, undefined);
+    assert.deepEqual(acknowledgmentRequest.messages.slice(1), [outcomeMessage]);
+    assert.deepEqual(cartService.getCart(sessionId), receipt.cart);
 
     const shopper = {
       role: "user",
@@ -507,19 +533,101 @@ test("both decisions record exact labels and send server receipts to Qwen on the
     );
     assert.equal(events.at(-1).type, "complete");
     assert.deepEqual(model.mock.calls.at(-1).arguments[0].messages.slice(-2), [
-      {
-        role: "user",
-        content: `${receipt.buttonLabel}\n\nServer-confirmed outcome: ${receipt.outcome}`,
-      },
+      outcomeMessage,
       question,
     ]);
 
     const retry = await decide(sessionId, proposal.id, decision);
     assert.equal(retry.status, 200);
     assert.deepEqual(await retry.json(), receipt);
-    assert.equal(model.mock.callCount(), callsBeforeDecision + 1);
+    assert.equal(model.mock.callCount(), callsBeforeDecision + 2);
     assert.deepEqual(cartService.getCart(sessionId), receipt.cart);
   }
+});
+
+test("rejects invalid, unconfirmed, and cross-session receipt references before calling Qwen", async (t) => {
+  const model = mockModel(t);
+  const owner = cartService.resolveGuestSession(undefined);
+  const other = cartService.resolveGuestSession(undefined);
+  const completed = await propose(model, owner, "add_to_cart", 1);
+  await decide(owner, completed.id, "approve");
+  const pending = await propose(model, owner, "add_to_cart", 1);
+  const callsBeforeFollowUps = model.mock.callCount();
+
+  assert.equal((await replyToApproval(owner, "bad-id")).status, 400);
+  assert.equal((await replyToApproval(owner, randomUUID())).status, 404);
+  assert.equal((await replyToApproval(owner, pending.id)).status, 404);
+  assert.equal((await replyToApproval(other, completed.id)).status, 404);
+  assert.equal((await replyToApproval(undefined, completed.id)).status, 404);
+  assert.equal(
+    (
+      await POST(
+        request("POST", owner, {
+          replyToApproval: completed.id,
+          messages: [{ role: "user", content: "Basket updated." }],
+        }),
+      )
+    ).status,
+    400,
+  );
+  assert.equal(model.mock.callCount(), callsBeforeFollowUps);
+  assert.equal((await decide(owner, pending.id, "cancel")).status, 200);
+});
+
+test("retries a failed approval reply without repeating the basket change", async (t) => {
+  const model = mockModel(t);
+  const sessionId = cartService.resolveGuestSession(undefined);
+  const add = t.mock.method(cartService, "addToCart");
+  const proposal = await propose(model, sessionId, "add_to_cart", 2);
+  const decision = await decide(sessionId, proposal.id, "approve");
+  assert.equal(decision.status, 200);
+  const receipt = await decision.json();
+
+  model.mock.mockImplementationOnce(async () => {
+    throw new Error("Ollama offline.");
+  });
+  assert.deepEqual(
+    await readEvents(await replyToApproval(sessionId, proposal.id)),
+    [
+      {
+        type: "error",
+        error: "Unable to reach local Ollama or generate a reply.",
+      },
+    ],
+  );
+  assert.deepEqual(cartService.getCart(sessionId), receipt.cart);
+
+  const content = "Your basket now has two Cedar Dusk.";
+  model.mock.mockImplementationOnce(async () => ({
+    message: { role: "assistant", content },
+  }));
+  assert.deepEqual(
+    await readEvents(await replyToApproval(sessionId, proposal.id)),
+    [{ type: "complete", data: { content } }],
+  );
+  assert.equal(add.mock.callCount(), 1);
+  assert.deepEqual(approvalService.getReceipt(sessionId, proposal.id), receipt);
+  assert.deepEqual(cartService.getCart(sessionId), cedarDuskCart(2));
+});
+
+test("an approval reply leaves other pending proposals open", async (t) => {
+  const model = mockModel(t);
+  const sessionId = cartService.resolveGuestSession(undefined);
+  const events = await sendToolCalls(
+    model,
+    sessionId,
+    call("add_to_cart", { productId, quantity: 1 }),
+    call("add_to_cart", { productId, quantity: 2 }),
+  );
+  const [first, second] = events.at(-1).data.approvals;
+  assert.equal((await decide(sessionId, first.id, "cancel")).status, 200);
+  model.mock.mockImplementationOnce(async () => ({
+    message: { role: "assistant", content: "The first change was cancelled." },
+  }));
+  const reply = await readEvents(await replyToApproval(sessionId, first.id));
+  assert.equal(reply.at(-1).type, "complete");
+  assert.equal((await decide(sessionId, second.id, "approve")).status, 200);
+  assert.deepEqual(cartService.getCart(sessionId), cedarDuskCart(2));
 });
 
 test("ignores receipt references from another guest, a pending proposal, or an unmatched label", async (t) => {

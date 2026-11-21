@@ -4,6 +4,7 @@ import type { CartSnapshot } from "@/modules/cart/types";
 import type { Product } from "@/modules/catalog/types";
 import type {
   ApprovalProposalSchema,
+  ApprovalReplyRequestSchema,
   ApprovalRequestSchema,
   ApprovalResponseSchema,
   ApprovalResultSchema,
@@ -17,6 +18,7 @@ import type {
 
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
+export type ApprovalReplyRequest = z.infer<typeof ApprovalReplyRequestSchema>;
 export type ChatSuccessResponse = z.infer<typeof ChatSuccessResponseSchema>;
 export type ChatErrorResponse = z.infer<typeof ChatErrorResponseSchema>;
 export type ActivityLabel = z.infer<typeof ActivityLabelSchema>;

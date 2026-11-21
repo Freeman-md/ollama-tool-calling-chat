@@ -1,10 +1,15 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import type { ApprovalRequest, ChatMessage } from "@/modules/chat/types";
-import { requestApproval, requestChat } from "@/app/_lib/request";
+import {
+  requestApproval,
+  requestApprovalReply,
+  requestChat,
+} from "@/app/_lib/request";
 import {
   closePendingProposals,
   completeReply,
   recordApprovalReceipt,
+  setApprovalReplyState,
   toChatMessage,
   type DisplayMessage,
 } from "@/app/_lib/chat-transcript";
@@ -26,7 +31,7 @@ export function useChat() {
   const nextMessageId = useRef(0);
   const shouldFollow = useRef(false);
   const requestInFlight = useRef(false);
-  const isPending = messages.at(-1)?.isPending === true;
+  const isPending = messages.some((message) => message.isPending);
 
   useLayoutEffect(() => {
     if (!shouldFollow.current) return;
@@ -55,7 +60,7 @@ export function useChat() {
     };
     const replyId = nextMessageId.current++;
     const conversation: ChatMessage[] = [
-      ...messages.map(toChatMessage),
+      ...messages.filter((message) => !message.replyError).map(toChatMessage),
       { role: userMessage.role, content: userMessage.content },
     ];
     shouldFollow.current = true;
@@ -98,19 +103,72 @@ export function useChat() {
     if (requestInFlight.current) {
       throw new Error("Wait for the current chat request to finish.");
     }
+    const proposal = messages
+      .find(({ id }) => id === messageId)
+      ?.approvals?.find(({ id }) => id === approval.proposalId);
+    if (!proposal || proposal.closed || proposal.receipt) {
+      return;
+    }
     requestInFlight.current = true;
     setIsDeciding(true);
 
     try {
       const receipt = await requestApproval(approval);
       const shopperMessageId = nextMessageId.current++;
+      const replyId = nextMessageId.current++;
       shouldFollow.current = isNearBottom();
       setMessages((current) =>
-        recordApprovalReceipt(current, messageId, shopperMessageId, receipt),
+        recordApprovalReceipt(
+          current,
+          messageId,
+          shopperMessageId,
+          replyId,
+          receipt,
+        ),
       );
+      await finishApprovalReply(replyId, receipt.proposalId);
     } finally {
       requestInFlight.current = false;
       setIsDeciding(false);
+    }
+  }
+
+  async function finishApprovalReply(replyId: number, proposalId: string) {
+    try {
+      const result = await requestApprovalReply(proposalId);
+      shouldFollow.current = isNearBottom();
+      setMessages((current) => completeReply(current, replyId, result));
+    } catch (caught) {
+      const replyError =
+        caught instanceof Error
+          ? caught.message
+          : "Couldn’t get a reply to this decision.";
+      setMessages((current) =>
+        setApprovalReplyState(current, replyId, {
+          isPending: false,
+          replyError,
+        }),
+      );
+    }
+  }
+
+  async function retryApprovalReply(replyId: number) {
+    const reply = messages.find(({ id }) => id === replyId);
+    if (
+      requestInFlight.current ||
+      !reply?.replyError ||
+      !reply.approvalReplyFor
+    ) {
+      return;
+    }
+    requestInFlight.current = true;
+    setMessages((current) =>
+      setApprovalReplyState(current, replyId, { isPending: true }),
+    );
+    try {
+      await finishApprovalReply(replyId, reply.approvalReplyFor);
+    } finally {
+      requestInFlight.current = false;
     }
   }
 
@@ -123,5 +181,6 @@ export function useChat() {
     error,
     sendMessage,
     decideApproval,
+    retryApprovalReply,
   };
 }

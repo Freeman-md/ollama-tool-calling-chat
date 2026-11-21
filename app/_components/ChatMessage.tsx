@@ -8,17 +8,19 @@ import { ProductCard } from "./ProductCard";
 
 type ChatMessageProps = {
   message: DisplayMessage;
-  isDeciding: boolean;
+  isBusy: boolean;
   onApprovalDecision: (
     messageId: number,
     approval: ApprovalRequest,
   ) => Promise<void>;
+  onRetryApprovalReply: (replyId: number) => Promise<void>;
 };
 
 export function ChatMessage({
   message,
-  isDeciding,
+  isBusy,
   onApprovalDecision,
+  onRetryApprovalReply,
 }: ChatMessageProps) {
   const products = message.products ?? [];
   const recommendedProductIds = message.recommendedProductIds ?? [];
@@ -32,6 +34,10 @@ export function ChatMessage({
 
   function handleApprovalDecision(approval: ApprovalRequest) {
     return onApprovalDecision(message.id, approval);
+  }
+
+  function handleRetryApprovalReply() {
+    void onRetryApprovalReply(message.id);
   }
 
   if (message.role === "user") {
@@ -51,9 +57,25 @@ export function ChatMessage({
         <AssistantActivity isPending={isPending} steps={message.activity} />
         {!isPending && (
           <div className="assistant-reply">
-            <div className="assistant-content">
-              <Markdown skipHtml>{message.content}</Markdown>
-            </div>
+            {message.replyError ? (
+              <>
+                <p className="approval-reply-error" role="alert">
+                  {message.replyError}
+                </p>
+                <button
+                  type="button"
+                  className="approval-reply-retry"
+                  disabled={isBusy}
+                  onClick={handleRetryApprovalReply}
+                >
+                  Retry reply
+                </button>
+              </>
+            ) : (
+              <div className="assistant-content">
+                <Markdown skipHtml>{message.content}</Markdown>
+              </div>
+            )}
           </div>
         )}
         {!isPending && basket && <BasketSummary cart={basket} />}
@@ -61,7 +83,7 @@ export function ChatMessage({
           <ApprovalCard
             key={approval.id}
             approval={approval}
-            disabled={isDeciding}
+            disabled={isBusy}
             onDecision={handleApprovalDecision}
           />
         ))}
