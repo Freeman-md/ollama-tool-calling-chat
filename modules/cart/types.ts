@@ -1,11 +1,14 @@
 import { z } from "zod";
 
+export const CartQuantitySchema = z.number().int().nonnegative();
+export const PositiveCartQuantitySchema = z.number().int().positive();
+
 export const CartSnapshotSchema = z.object({
   items: z.array(
     z.object({
       productId: z.string(),
       name: z.string(),
-      quantity: z.number().int().positive(),
+      quantity: PositiveCartQuantitySchema,
     }),
   ),
   totalPence: z.number().int().nonnegative(),
