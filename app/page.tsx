@@ -5,8 +5,15 @@ import { ChatMessage } from "@/app/_components/ChatMessage";
 import { useChat } from "@/app/_hooks/use-chat";
 
 export default function Home() {
-  const { messages, draft, setDraft, isPending, error, sendMessage } =
-    useChat();
+  const {
+    messages,
+    draft,
+    setDraft,
+    isPending,
+    error,
+    sendMessage,
+    decideApproval,
+  } = useChat();
   const transcriptClass = `transcript ${messages.length ? "has-messages" : ""}`;
   const isEmpty = messages.length === 0;
 
@@ -36,7 +43,11 @@ export default function Home() {
         {!isEmpty && (
           <div className="message-list">
             {messages.map((message) => (
-              <ChatMessage key={message.id} message={message} />
+              <ChatMessage
+                key={message.id}
+                message={message}
+                onApprovalDecision={decideApproval}
+              />
             ))}
           </div>
         )}

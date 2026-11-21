@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import test from "node:test";
-import { requestChat } from "@/app/_lib/request";
+import { requestApproval, requestChat } from "@/app/_lib/request";
 
 const messages = [{ role: "user", content: "Hello" }];
 const unavailable =
@@ -19,6 +20,20 @@ function streamResponse(chunks) {
 
 test("reads split UTF-8 lines and returns the validated final response", async (t) => {
   const cart = { items: [], totalPence: 0, currency: "GBP" };
+  const approvals = [
+    {
+      id: randomUUID(),
+      expiresAt: Date.now() + 300000,
+      preview: {
+        kind: "basket_change",
+        productName: "Cedar Dusk",
+        previousQuantity: 0,
+        quantity: 2,
+        totalPence: 8000,
+        currency: "GBP",
+      },
+    },
+  ];
   const text = [
     { type: "activity", label: "Searching products…" },
     { type: "activity", label: "Checking your basket…" },
@@ -30,6 +45,7 @@ test("reads split UTF-8 lines and returns the validated final response", async (
         recommendedProductIds: [],
         productView: "detailed",
         cart,
+        approvals,
       },
     },
   ]
@@ -52,11 +68,43 @@ test("reads split UTF-8 lines and returns the validated final response", async (
     recommendedProductIds: [],
     productView: "detailed",
     cart,
+    approvals,
   });
   assert.deepEqual(steps, ["Searching products…", "Checking your basket…"]);
   assert.equal(fetch.mock.calls[0].arguments[0], "/api/chat");
   assert.deepEqual(JSON.parse(fetch.mock.calls[0].arguments[1].body), {
     messages,
+  });
+});
+
+test("sends only the proposal and decision and decodes the directly returned basket", async (t) => {
+  const approval = { proposalId: randomUUID(), decision: "approve" };
+  const result = {
+    status: "approved",
+    cart: {
+      items: [{ productId: "cedar-dusk", name: "Cedar Dusk", quantity: 2 }],
+      totalPence: 8000,
+      currency: "GBP",
+    },
+  };
+  const fetch = t.mock.method(globalThis, "fetch", async () =>
+    Response.json(result),
+  );
+  assert.deepEqual(await requestApproval(approval), result);
+  const [url, options] = fetch.mock.calls[0].arguments;
+  assert.equal(url, "/api/chat");
+  assert.equal(options.method, "PATCH");
+  assert.deepEqual(JSON.parse(options.body), approval);
+
+  fetch.mock.mockImplementation(async () =>
+    Response.json(
+      { error: "This change expired. Ask for it again." },
+      { status: 410 },
+    ),
+  );
+  await assert.rejects(requestApproval(approval), {
+    status: 410,
+    message: "This change expired. Ask for it again.",
   });
 });
 

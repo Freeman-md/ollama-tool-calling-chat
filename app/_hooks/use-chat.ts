@@ -1,10 +1,17 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import type {
   ActivityLabel,
+  ApprovalProposal,
+  ApprovalRequest,
+  ApprovalResponse,
   ChatMessage,
   ChatSuccessResponse,
 } from "@/modules/chat/types";
-import { requestChat } from "@/app/_lib/request";
+import { requestApproval, requestChat } from "@/app/_lib/request";
+
+export type DisplayApproval = ApprovalProposal & {
+  resolution?: ApprovalResponse;
+};
 
 export type DisplayMessage = ChatMessage & {
   id: number;
@@ -14,7 +21,36 @@ export type DisplayMessage = ChatMessage & {
   productView?: ChatSuccessResponse["productView"];
   recommendedProductIds?: ChatSuccessResponse["recommendedProductIds"];
   cart?: ChatSuccessResponse["cart"];
+  approvals?: DisplayApproval[];
 };
+
+function toChatMessage({
+  role,
+  content,
+  products = [],
+  approvals = [],
+}: DisplayMessage): ChatMessage {
+  const context = [content];
+  if (products.length > 0) {
+    const shownProducts = products.map(({ name, id }) => `${name} (ID: ${id})`);
+    context.push(`Catalog products shown: ${shownProducts.join(", ")}.`);
+  }
+
+  const decisions = approvals.flatMap(({ resolution, preview }) => {
+    if (!resolution) {
+      return [];
+    }
+    if (resolution.status === "approved") {
+      return [
+        `The shopper approved the basket change. ${preview.productName} quantity was set to ${preview.quantity}.`,
+      ];
+    }
+    return [
+      `The shopper cancelled the basket change for ${preview.productName}.`,
+    ];
+  });
+  return { role, content: [...context, ...decisions].join("\n") };
+}
 
 export function useChat() {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
@@ -48,10 +84,7 @@ export function useChat() {
     };
     const replyId = nextMessageId.current++;
     const conversation: ChatMessage[] = [
-      ...messages.map(({ role, content: messageContent }) => ({
-        role,
-        content: messageContent,
-      })),
+      ...messages.map(toChatMessage),
       { role: userMessage.role, content: userMessage.content },
     ];
     shouldFollow.current = true;
@@ -92,6 +125,7 @@ export function useChat() {
             productView: result.productView,
             recommendedProductIds: result.recommendedProductIds,
             cart: result.cart,
+            approvals: result.approvals,
           };
         }),
       );
@@ -105,5 +139,32 @@ export function useChat() {
     }
   }
 
-  return { messages, draft, setDraft, isPending, error, sendMessage };
+  async function decideApproval(messageId: number, approval: ApprovalRequest) {
+    const resolution = await requestApproval(approval);
+    setMessages((current) =>
+      current.map((message) => {
+        if (message.id !== messageId) {
+          return message;
+        }
+        return {
+          ...message,
+          approvals: message.approvals?.map((proposal) =>
+            proposal.id === approval.proposalId
+              ? { ...proposal, resolution }
+              : proposal,
+          ),
+        };
+      }),
+    );
+  }
+
+  return {
+    messages,
+    draft,
+    setDraft,
+    isPending,
+    error,
+    sendMessage,
+    decideApproval,
+  };
 }

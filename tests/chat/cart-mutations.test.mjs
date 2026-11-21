@@ -23,9 +23,9 @@ test("prepares without writing and adds to the latest quantity of an existing li
   const second = add.prepare({ productId, quantity: 3 });
   assert.deepEqual(cartService.getCart(sessionId), emptyCart);
 
-  assert.deepEqual(first().cart, cedarDuskCart(2));
+  assert.deepEqual(first.execute().cart, cedarDuskCart(2));
   const cart = cedarDuskCart(5);
-  assert.deepEqual(second(), { content: JSON.stringify(cart), cart });
+  assert.deepEqual(second.execute(), { content: JSON.stringify(cart), cart });
   assert.deepEqual(getCart.forGuestSession(sessionId).prepare({})().cart, cart);
 });
 
@@ -42,9 +42,9 @@ test("sets the exact quantity and removes the line with zero", () => {
     totalPence: 8900,
     currency: "GBP",
   };
-  const initial = set.prepare({ productId, quantity: 2 })().cart;
+  const initial = set.prepare({ productId, quantity: 2 }).execute().cart;
   assert.deepEqual(initial, cedarDuskCart(2));
-  set.prepare({ productId: harbourClassic.productId, quantity: 1 })();
+  set.prepare({ productId: harbourClassic.productId, quantity: 1 }).execute();
 
   const update = set.prepare({ productId, quantity: 4 });
   assert.deepEqual(cartService.getCart(sessionId).items, [
@@ -56,11 +56,11 @@ test("sets the exact quantity and removes the line with zero", () => {
     totalPence: 24900,
     currency: "GBP",
   };
-  assert.deepEqual(update(), { content: JSON.stringify(cart), cart });
+  assert.deepEqual(update.execute(), { content: JSON.stringify(cart), cart });
   const remove = set.prepare({ productId, quantity: 0 });
-  assert.deepEqual(remove().cart, otherItemCart);
+  assert.deepEqual(remove.execute().cart, otherItemCart);
   assert.deepEqual(
-    remove().cart,
+    remove.execute().cart,
     otherItemCart,
     "removing an absent line leaves the other item intact",
   );
@@ -71,7 +71,7 @@ test("rejects invalid quantities during preparation and leaves the basket intact
   const sessionId = cartService.resolveGuestSession(undefined);
   const add = addToCart.forGuestSession(sessionId);
   const set = setCartQuantity.forGuestSession(sessionId);
-  const initial = add.prepare({ productId, quantity: 2 })().cart;
+  const initial = add.prepare({ productId, quantity: 2 }).execute().cart;
 
   assert.throws(() => add.prepare({ productId, quantity: 0 }), { status: 400 });
   for (const tool of [add, set]) {
@@ -101,18 +101,18 @@ test("rejects unknown and unavailable products at execution without a basket cha
   const sessionId = cartService.resolveGuestSession(undefined);
   const add = addToCart.forGuestSession(sessionId);
   const set = setCartQuantity.forGuestSession(sessionId);
-  const initial = add.prepare({ productId, quantity: 2 })().cart;
+  const initial = add.prepare({ productId, quantity: 2 }).execute().cart;
 
   for (const tool of [add, set]) {
     const unknown = tool.prepare({ productId: "unknown-product", quantity: 1 });
-    assert.throws(unknown, {
+    assert.throws(unknown.execute, {
       message: "That product is not in the catalog.",
       status: 400,
     });
     assert.deepEqual(cartService.getCart(sessionId), initial);
 
     const unavailable = tool.prepare({ productId: "rose-veil", quantity: 1 });
-    assert.throws(unavailable, {
+    assert.throws(unavailable.execute, {
       message: "Rose Veil is out of stock.",
       status: 400,
     });
@@ -124,15 +124,15 @@ test("rejects quantities and totals outside the safe integer range without savin
   const sessionId = cartService.resolveGuestSession(undefined);
   const add = addToCart.forGuestSession(sessionId);
   const set = setCartQuantity.forGuestSession(sessionId);
-  const initial = add.prepare({ productId, quantity: 2 })().cart;
+  const initial = add.prepare({ productId, quantity: 2 }).execute().cart;
   const tooLarge = { productId, quantity: Number.MAX_SAFE_INTEGER };
 
-  assert.throws(add.prepare(tooLarge), {
+  assert.throws(add.prepare(tooLarge).execute, {
     message: "The resulting basket quantity is too large.",
     status: 400,
   });
   assert.deepEqual(cartService.getCart(sessionId), initial);
-  assert.throws(set.prepare(tooLarge), {
+  assert.throws(set.prepare(tooLarge).execute, {
     message: "The resulting basket total is too large.",
     status: 400,
   });
@@ -145,9 +145,9 @@ test("keeps changes to the same product isolated by guest session", () => {
   const addFirst = addToCart.forGuestSession(first);
   const setSecond = setCartQuantity.forGuestSession(second);
 
-  addFirst.prepare({ productId, quantity: 2 })();
+  addFirst.prepare({ productId, quantity: 2 }).execute();
   assert.deepEqual(cartService.getCart(second), emptyCart);
-  setSecond.prepare({ productId, quantity: 7 })();
+  setSecond.prepare({ productId, quantity: 7 }).execute();
   assert.deepEqual(cartService.getCart(first), cedarDuskCart(2));
   assert.deepEqual(cartService.getCart(second), cedarDuskCart(7));
 });

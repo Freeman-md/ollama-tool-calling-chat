@@ -1,16 +1,63 @@
 import {
+  ApprovalRequestSchema,
+  ApprovalResponseSchema,
   ChatErrorResponseSchema,
   ChatRequestSchema,
   ChatStreamEventSchema,
 } from "@/modules/chat/contract";
 import type {
   ActivityLabel,
+  ApprovalRequest,
+  ApprovalResponse,
   ChatMessage,
   ChatSuccessResponse,
 } from "@/modules/chat/types";
 
 const unavailableMessage =
   "Couldn’t get a reply from local Ollama. Check that Ollama is running, then try again.";
+
+const approvalUnavailable = "Couldn’t confirm your basket decision. Try again.";
+
+export class ApprovalRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApprovalRequestError";
+  }
+}
+
+export async function requestApproval(
+  approval: ApprovalRequest,
+): Promise<ApprovalResponse> {
+  const requestBody = ApprovalRequestSchema.parse(approval);
+  let response: Response;
+  try {
+    response = await fetch("/api/chat", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+    });
+  } catch {
+    throw new Error(approvalUnavailable);
+  }
+
+  const body: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = ChatErrorResponseSchema.safeParse(body);
+    throw new ApprovalRequestError(
+      error.success ? error.data.error : approvalUnavailable,
+      response.status,
+    );
+  }
+
+  const result = ApprovalResponseSchema.safeParse(body);
+  if (!result.success) {
+    throw new Error(approvalUnavailable);
+  }
+  return result.data;
+}
 
 export async function requestChat(
   messages: ChatMessage[],

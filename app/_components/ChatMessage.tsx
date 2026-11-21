@@ -1,15 +1,33 @@
 import Markdown from "react-markdown";
 import type { DisplayMessage } from "@/app/_hooks/use-chat";
+import type { ApprovalRequest } from "@/modules/chat/types";
 import { AssistantActivity } from "./AssistantActivity";
+import { BasketApproval } from "./BasketApproval";
 import { BasketSummary } from "./BasketSummary";
 import { ProductCard } from "./ProductCard";
 
-export function ChatMessage({ message }: { message: DisplayMessage }) {
+type ChatMessageProps = {
+  message: DisplayMessage;
+  onApprovalDecision: (
+    messageId: number,
+    approval: ApprovalRequest,
+  ) => Promise<void>;
+};
+
+export function ChatMessage({ message, onApprovalDecision }: ChatMessageProps) {
   const products = message.products ?? [];
   const recommendedProductIds = message.recommendedProductIds ?? [];
   const hasProducts = products.length > 0;
   const isPending = message.isPending === true;
+  const hasBasketDecision = message.approvals?.some(
+    ({ resolution }) => resolution !== undefined,
+  );
+  const basket = hasBasketDecision ? undefined : message.cart;
   const messageClass = `message ${message.role}`;
+
+  function handleApprovalDecision(approval: ApprovalRequest) {
+    return onApprovalDecision(message.id, approval);
+  }
 
   if (message.role === "user") {
     return (
@@ -33,7 +51,14 @@ export function ChatMessage({ message }: { message: DisplayMessage }) {
             </div>
           </div>
         )}
-        {!isPending && message.cart && <BasketSummary cart={message.cart} />}
+        {!isPending && basket && <BasketSummary cart={basket} />}
+        {message.approvals?.map((approval) => (
+          <BasketApproval
+            key={approval.id}
+            approval={approval}
+            onDecision={handleApprovalDecision}
+          />
+        ))}
         {hasProducts && (
           <section className="catalog-matches" aria-label="Products">
             <h2>Products</h2>

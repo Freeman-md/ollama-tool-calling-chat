@@ -9,7 +9,6 @@ import { ChatMessage } from "@/app/_components/ChatMessage";
 import { POST } from "@/app/api/chat/route";
 import { cartService, createCartService } from "@/modules/cart/service";
 import { runChat } from "@/modules/chat/agent";
-import { forGuestSession as addToCartForGuestSession } from "@/modules/chat/tools/cart/add-to-cart";
 import {
   dispatchToolCalls,
   getToolRegistry,
@@ -79,13 +78,23 @@ test("streams the server basket for the same guest across turns and isolates a s
   const tools = chat.mock.calls[0].arguments[0].tools;
   assert.deepEqual(
     tools.map((tool) => tool.function.name),
-    ["list_products", "search_products", "get_product_by_id", "get_cart"],
+    [
+      "list_products",
+      "search_products",
+      "get_product_by_id",
+      "get_cart",
+      "add_to_cart",
+      "set_cart_quantity",
+    ],
   );
 
-  sessions.set(cookie.value, [
-    { productId: "cedar-dusk", quantity: 2 },
-    { productId: "harbour-classic", quantity: 3 },
-  ]);
+  sessions.set(cookie.value, {
+    revision: 1,
+    items: [
+      { productId: "cedar-dusk", quantity: 2 },
+      { productId: "harbour-classic", quantity: 3 },
+    ],
+  });
   const populatedCart = {
     items: [
       { productId: "cedar-dusk", name: "Cedar Dusk", quantity: 2 },
@@ -212,50 +221,4 @@ test("preserves both the basket and product cards in a recommendation reply", as
     ["cedar-dusk"],
   );
   assert.deepEqual(result.recommendedProductIds, ["cedar-dusk"]);
-});
-
-test("live chat excludes both basket mutations, rejects calls to them and still reads the basket", async (t) => {
-  const sessionId = cartService.resolveGuestSession(undefined);
-  const arguments_ = { productId: "cedar-dusk", quantity: 1 };
-  const cart = addToCartForGuestSession(sessionId).prepare({
-    ...arguments_,
-    quantity: 2,
-  })().cart;
-  const mutationNames = ["add_to_cart", "set_cart_quantity"];
-  const modelResponses = [
-    ...mutationNames.map((name) => ({
-      ...assistantReply,
-      tool_calls: [call(name, arguments_)],
-    })),
-    { ...assistantReply, tool_calls: [call("get_cart", {})] },
-    assistantReply,
-  ];
-  const chat = t.mock.method(ollama, "chat", async () => ({
-    message: modelResponses.shift(),
-  }));
-
-  for (const content of [
-    "Add Cedar Dusk to my basket.",
-    "Set Cedar Dusk to 1.",
-  ]) {
-    const response = await requestBasket(
-      [{ role: "user", content }],
-      sessionId,
-    );
-    assert.deepEqual(await readEvents(response), [
-      { type: "error", error: "Ollama requested an unsupported tool." },
-    ]);
-    const { tools } = chat.mock.calls.at(-1).arguments[0];
-    assert.equal(
-      tools.some((tool) => mutationNames.includes(tool.function.name)),
-      false,
-    );
-    assert.deepEqual(cartService.getCart(sessionId), cart);
-  }
-
-  const response = await requestBasket([basketQuestion], sessionId);
-  assert.deepEqual(await readEvents(response), [
-    { type: "activity", label: "Checking your basket…" },
-    { type: "complete", data: { content: assistantReply.content, cart } },
-  ]);
 });

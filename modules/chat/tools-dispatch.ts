@@ -2,14 +2,18 @@ import type { Message, ToolCall } from "ollama";
 import type { Product } from "@/modules/catalog/types";
 import type {
   ActivityLabel,
+  ApprovalAction,
   ChatSuccessResponse,
   ToolRegistration,
+  ToolResult,
 } from "./types";
 import { ToolDispatchError } from "./errors";
 import * as listProducts from "./tools/list-products";
 import * as searchProducts from "./tools/search-products";
 import * as getProductById from "./tools/get-product-by-id";
 import * as getCart from "./tools/cart/get-cart";
+import * as addToCart from "./tools/cart/add-to-cart";
+import * as setCartQuantity from "./tools/cart/set-cart-quantity";
 
 export type ToolRegistry = Readonly<Record<string, ToolRegistration>>;
 
@@ -27,6 +31,8 @@ export function getToolRegistry(guestSessionId?: string): ToolRegistry {
   return {
     ...productTools,
     [getCart.name]: getCart.forGuestSession(guestSessionId),
+    [addToCart.name]: addToCart.forGuestSession(guestSessionId),
+    [setCartQuantity.name]: setCartQuantity.forGuestSession(guestSessionId),
   };
 }
 
@@ -37,6 +43,10 @@ const activityLabels: Record<string, ActivityLabel> = {
   [getCart.name]: "Checking your basket…",
 };
 
+type PreparedCall = { name: string } & (
+  { execute(): ToolResult } | { review(): ApprovalAction }
+);
+
 export function dispatchToolCalls(
   toolCalls: ToolCall[],
   registry: ToolRegistry = productTools,
@@ -44,34 +54,46 @@ export function dispatchToolCalls(
 ): {
   toolNames: string[];
   toolResults: Message[];
+  approvalActions: ApprovalAction[];
   products?: Product[];
   eligibleProducts?: Product[];
   productView?: ChatSuccessResponse["productView"];
   cart?: ChatSuccessResponse["cart"];
 } {
-  const preparedCalls = toolCalls.map((toolCall) => {
-    const name = toolCall.function.name;
-    const registration = registry[name];
-    if (!registration) {
+  const preparedCalls = toolCalls.map<PreparedCall>((toolCall) => {
+    const { name, arguments: arguments_ } = toolCall.function;
+    if (!Object.hasOwn(registry, name)) {
       throw new ToolDispatchError("Ollama requested an unsupported tool.", 502);
     }
 
-    return {
-      name,
-      execute: registration.prepare(toolCall.function.arguments),
-    };
+    const registration = registry[name];
+    if (registration.effect === "read" || registration.approval === "skip") {
+      return { name, execute: registration.prepare(arguments_) };
+    }
+    const prepared = registration.prepare(arguments_);
+    return { name, review: () => prepared.review() };
   });
 
+  const approvalActions = preparedCalls.flatMap((call) =>
+    "review" in call ? [call.review()] : [],
+  );
   let products: Product[] | undefined;
   let eligibleProducts: Product[] | undefined;
   let productView: ChatSuccessResponse["productView"];
   let cart: ChatSuccessResponse["cart"];
-  const toolResults: Message[] = preparedCalls.map(({ name, execute }) => {
+  const toolNames: string[] = [];
+  const toolResults: Message[] = [];
+  for (const call of preparedCalls) {
+    if (!("execute" in call)) {
+      continue;
+    }
+
+    const { name } = call;
     const label = activityLabels[name];
     if (label) {
       onActivity?.(label);
     }
-    const result = execute();
+    const result = call.execute();
     if (result.products !== undefined) {
       products = result.products;
       productView = result.productView ?? "compact";
@@ -81,12 +103,18 @@ export function dispatchToolCalls(
     if (result.cart !== undefined) {
       cart = result.cart;
     }
-    return { role: "tool", tool_name: name, content: result.content };
-  });
+    toolNames.push(name);
+    toolResults.push({
+      role: "tool",
+      tool_name: name,
+      content: result.content,
+    });
+  }
 
   return {
-    toolNames: preparedCalls.map(({ name }) => name),
+    toolNames,
     toolResults,
+    approvalActions,
     ...(products === undefined ? {} : { products, productView }),
     ...(eligibleProducts === undefined ? {} : { eligibleProducts }),
     ...(cart === undefined ? {} : { cart }),

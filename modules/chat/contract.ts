@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CartSnapshotSchema } from "@/modules/cart/types";
+import { BasketChangeSchema, CartSnapshotSchema } from "@/modules/cart/types";
 import { ProductSchema } from "@/modules/catalog/types";
 
 export const ChatMessageSchema = z.object({
@@ -13,6 +13,22 @@ export const ChatRequestSchema = z.object({
 
 export const ProductViewSchema = z.enum(["compact", "detailed"]);
 
+export const ApprovalProposalSchema = z.object({
+  id: z.uuid(),
+  expiresAt: z.number().int().positive(),
+  preview: BasketChangeSchema.extend({ kind: z.literal("basket_change") }),
+});
+
+export const ApprovalRequestSchema = z.strictObject({
+  proposalId: z.uuid(),
+  decision: z.enum(["approve", "cancel"]),
+});
+
+export const ApprovalResponseSchema = z.object({
+  status: z.enum(["approved", "cancelled"]),
+  cart: CartSnapshotSchema,
+});
+
 export const ChatSuccessResponseSchema = z.object({
   content: z.string(),
   toolNames: z.array(z.string()).optional(),
@@ -21,6 +37,7 @@ export const ChatSuccessResponseSchema = z.object({
   productView: ProductViewSchema.optional(),
   recommendedProductIds: z.array(z.string()).optional(),
   cart: CartSnapshotSchema.optional(),
+  approvals: z.array(ApprovalProposalSchema).optional(),
 });
 
 export const ChatErrorResponseSchema = z.object({

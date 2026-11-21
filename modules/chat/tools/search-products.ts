@@ -116,4 +116,8 @@ export function prepare(arguments_: unknown): () => ToolResult {
   };
 }
 
-export const tool = { definition, prepare } satisfies ToolRegistration;
+export const tool = {
+  definition,
+  effect: "read",
+  prepare,
+} satisfies ToolRegistration;

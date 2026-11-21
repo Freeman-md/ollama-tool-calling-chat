@@ -135,7 +135,11 @@ test("validates a batch before executing any product tool", (t) => {
   const execute = t.mock.fn(() => ({ content: "[]", products: [] }));
   const onActivity = t.mock.fn();
   const registry = {
-    list_products: { definition: listTool.definition, prepare: () => execute },
+    list_products: {
+      definition: listTool.definition,
+      effect: "read",
+      prepare: () => execute,
+    },
     search_products: searchTool,
   };
   assert.throws(
@@ -169,6 +173,7 @@ test("emits each activity immediately before its prepared tool executes", () => 
   const registry = {
     list_products: {
       definition: listTool.definition,
+      effect: "read",
       prepare: () => () => {
         events.push("executed");
         return { content: "[]", products: [] };

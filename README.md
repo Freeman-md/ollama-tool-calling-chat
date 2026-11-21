@@ -70,9 +70,11 @@ What woody fragrances do you have?
 
 The assistant can search the catalog, show matching products below its reply, and highlight its recommendations. Cards show a compact summary by default; a detailed product lookup can show the description and full specifications. Highlights are limited to products in both the latest search and the displayed cards.
 
-Ask “What’s in my basket?” to try `get_cart`. The chat shows a summary below the reply with the basket contents and the GBP total. Each guest starts with an empty, read-only basket. A session cookie links requests to the same basket while it is stored in the running server's memory.
+Ask “What’s in my basket?” to see the basket contents and the GBP total below the reply. To add a product, set its quantity, or remove it, ask in chat and review the proposed quantity and new total. Use **Approve** to apply the change or **Cancel** to keep the basket as it is. Proposals expire after five minutes. If the basket changed since a proposal was created, ask for the change again.
 
-Valid `POST /api/chat` requests stream newline-delimited JSON. `activity` events carry a shopper-facing label, followed by either a `complete` event with the reply and any product cards or basket snapshot, or an `error` event. Invalid requests return a JSON error before streaming. Completed activity is available above the reply in a collapsed section.
+Each guest starts with an empty basket. A session cookie links requests to the same basket. Restarting the server clears its in-memory baskets and proposals.
+
+Valid `POST /api/chat` requests stream newline-delimited JSON. `activity` events carry a shopper-facing label, followed by either a `complete` event with the reply and any product cards, basket snapshot, or pending approvals, or an `error` event. Invalid requests return a JSON error before streaming. Completed activity is available above the reply in a collapsed section. `PATCH /api/chat` takes a proposal ID and an approve or cancel decision and returns the resulting basket as JSON.
 
 ### Product catalog conversation
 
@@ -85,4 +87,4 @@ A browser conversation with local `qwen3.5:9b` produced these results:
 - “Can you tell me more details about it?” used `search_products` followed by `get_product_by_id` and reported Cedar Dusk's sample description, 50 ml bottle, notes, price and availability. In a separate run, Qwen answered the same details directly from search results without fetching by ID.
 - “Is it available?” returned that Cedar Dusk was in stock. In different runs, Qwen used `search_products` or answered from the previous reply.
 
-On an earlier repeat, Qwen supplied `"£40"` as a budget and the app returned a validation error; product search now accepts this format. The model also added descriptive flourishes beyond the catalog and once offered to add an item to a basket, which this app does not support. The guidance now explicitly excludes purchasing; a later details check did not offer it. Model output can vary and is not guaranteed to be grounded.
+On an earlier repeat, Qwen supplied `"£40"` as a budget and the app returned a validation error. Product search now accepts this format. The model has also added descriptive flourishes beyond the catalog. Model output can vary.

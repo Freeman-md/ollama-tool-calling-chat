@@ -16,3 +16,13 @@ export const CartSnapshotSchema = z.object({
 });
 
 export type CartSnapshot = z.infer<typeof CartSnapshotSchema>;
+
+export const BasketChangeSchema = z.object({
+  productName: z.string(),
+  previousQuantity: CartQuantitySchema,
+  quantity: CartQuantitySchema,
+  totalPence: CartSnapshotSchema.shape.totalPence,
+  currency: CartSnapshotSchema.shape.currency,
+});
+
+export type BasketChange = z.infer<typeof BasketChangeSchema>;

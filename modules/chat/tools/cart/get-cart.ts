@@ -22,6 +22,7 @@ const definition: Tool = {
 export function forGuestSession(guestSessionId: string): ToolRegistration {
   return {
     definition,
+    effect: "read",
     prepare(arguments_) {
       if (!schema.safeParse(arguments_).success) {
         throw new ToolDispatchError(

@@ -2,6 +2,7 @@ import ollama, { type Message } from "ollama";
 import type { ActivityLabel, ChatMessage, ChatSuccessResponse } from "./types";
 import type { Product } from "@/modules/catalog/types";
 import { CHAT_MODEL, MAX_TOOL_ROUNDS } from "@/lib/config";
+import { approvalService } from "./approvals";
 import { ChatAgentError, ToolDispatchError } from "./errors";
 import { dispatchToolCalls, getToolRegistry } from "./tools-dispatch";
 import * as recommendations from "./tools/reply-with-recommendations";
@@ -9,7 +10,7 @@ import * as recommendations from "./tools/reply-with-recommendations";
 const assistantInstructions: Message = {
   role: "system",
   content:
-    "Be a concise, natural conversational assistant. Answer only what the user asked; do not volunteer code, examples, tool descriptions, or extra suggestions. For greetings and small talk, reply briefly without calling tools. Use list_products to browse, search_products to search the catalog, and get_product_by_id for details or availability. If you need an ID, search by product name first. When the shopper asks for more information, call get_product_by_id with view detailed; for availability alone use compact. Lead with a concise answer and let product cards carry routine details. If mentioning an option above the budget or out of stock, clearly state that trade-off. After searching for a recommendation and finding matches, call reply_with_recommendations alone with your final reply and the IDs you recommend from those results. Use only catalog facts for product recommendations, prices, notes, details and availability. Catalog pricePence is an integer in pence: divide by 100 to get pounds (4000 pence is £40). Do not confuse price with bottle size or other product details. Do not infer or invent scent characteristics or note roles that are not in the catalog. Use get_cart whenever the shopper asks about their basket, even if you checked it earlier in the conversation. Treat its items, quantities and totalPence as authoritative, and let the basket summary show the details. The basket is read-only; never claim to change it or offer checkout. If no matches, ask whether the shopper would change their budget or scent preference.",
+    "Be a concise, natural conversational assistant. Answer only what the user asked; do not volunteer code, examples, tool descriptions, or extra suggestions. For greetings and small talk, reply briefly without calling tools. Use list_products to browse, search_products to search the catalog, and get_product_by_id for details or availability. If you need an ID, search by product name first. When the shopper asks for more information, call get_product_by_id with view detailed; for availability alone use compact. Lead with a concise answer and let product cards carry routine details. If mentioning an option above the budget or out of stock, clearly state that trade-off. After searching for a recommendation and finding matches, call reply_with_recommendations alone with your final reply and the IDs you recommend from those results. Use only catalog facts for product recommendations, prices, notes, details and availability. Catalog pricePence is an integer in pence: divide by 100 to get pounds (4000 pence is £40). Do not confuse price with bottle size or other product details. Do not infer or invent scent characteristics or note roles that are not in the catalog. Use get_cart whenever the shopper asks about their basket, even if you checked it earlier in the conversation. Use add_to_cart to propose adding units. Use set_cart_quantity to propose an exact quantity, using zero to remove the item. For a requested basket change, use the exact catalog product ID. If the ID is unknown, use search_products by product name first. The shopper approves changes with the controls shown by the app. Treat a chat message as a request for help, and never treat it as approval or claim a proposal was applied. Let the basket summary show the details. Do not offer checkout. If no matches, ask whether the shopper would change their budget or scent preference.",
 };
 
 function buildResponse({
@@ -18,6 +19,7 @@ function buildResponse({
   productView,
   recommendedProductIds,
   cart,
+  approvals,
   toolNames = [],
 }: Omit<ChatSuccessResponse, "toolName">): ChatSuccessResponse {
   const response: ChatSuccessResponse = { content };
@@ -33,6 +35,10 @@ function buildResponse({
 
   if (cart !== undefined) {
     response.cart = cart;
+  }
+
+  if (approvals !== undefined) {
+    response.approvals = approvals;
   }
 
   if (toolNames.length > 0) {
@@ -113,6 +119,7 @@ export async function runChat(
       const {
         toolNames,
         toolResults,
+        approvalActions,
         products: latestProducts,
         eligibleProducts: latestEligibleProducts,
         productView: latestProductView,
@@ -131,8 +138,29 @@ export async function runChat(
         cart = latestCart;
       }
 
-      conversation.push(response.message, ...toolResults);
       executedToolNames.push(...toolNames);
+      if (approvalActions.length > 0) {
+        if (guestSessionId === undefined) {
+          throw new ChatAgentError(
+            "Basket changes require a guest session.",
+            400,
+          );
+        }
+        const content =
+          approvalActions.length === 1
+            ? "I’ve prepared your basket change."
+            : "I’ve prepared your basket changes.";
+        return buildResponse({
+          content,
+          products,
+          productView,
+          cart,
+          approvals: approvalService.propose(guestSessionId, approvalActions),
+          toolNames: executedToolNames,
+        });
+      }
+
+      conversation.push(response.message, ...toolResults);
       toolRounds += 1;
     } catch (error) {
       if (error instanceof ToolDispatchError) {

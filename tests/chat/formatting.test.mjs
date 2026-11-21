@@ -71,3 +71,45 @@ test("shows the latest activity in the assistant row while the reply is pending"
     /Searching products…|activity-toggle|assistant-reply/,
   );
 });
+
+test("shows the approved basket in place of an earlier read in the same reply", () => {
+  const html = renderToStaticMarkup(
+    createElement(ChatMessage, {
+      message: {
+        id: 1,
+        role: "assistant",
+        content: "I’ve prepared your basket change.",
+        cart: { items: [], totalPence: 0, currency: "GBP" },
+        approvals: [
+          {
+            id: "proposal",
+            expiresAt: Date.now(),
+            preview: {
+              kind: "basket_change",
+              productName: "Cedar Dusk",
+              previousQuantity: 0,
+              quantity: 2,
+              totalPence: 8000,
+              currency: "GBP",
+            },
+            resolution: {
+              status: "approved",
+              cart: {
+                items: [
+                  { productId: "cedar-dusk", name: "Cedar Dusk", quantity: 2 },
+                ],
+                totalPence: 8000,
+                currency: "GBP",
+              },
+            },
+          },
+        ],
+      },
+    }),
+  );
+  assert.equal(html.match(/aria-label="Basket"/g)?.length, 1);
+  assert.match(
+    html,
+    /Basket updated\.[\s\S]*Cedar Dusk[\s\S]*Quantity 2[\s\S]*£80\.00/,
+  );
+});

@@ -209,6 +209,8 @@ textarea {
   flex-shrink: 0;
 }
 .message .basket-empty,
+.message .basket-change,
+.message .basket-notice,
 .message .basket-total {
   font-size: inherit;
   line-height: 1.5;
@@ -217,6 +219,50 @@ textarea {
   border-top: 1px solid var(--line);
   margin-top: 12px;
   padding-top: 10px;
+}
+.message .basket-notice {
+  color: #6c6963;
+  margin-bottom: 10px;
+}
+.basket-approval-controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: 14px;
+}
+.basket-expiry {
+  color: #6c6963;
+  font-size: 12px;
+}
+.basket-approval-buttons {
+  display: flex;
+  gap: 8px;
+}
+.basket-approval-buttons button {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 40px;
+  padding: 0 13px;
+}
+.basket-approval-buttons .basket-approve {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.basket-approval-buttons button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.message .basket-decision-error {
+  color: #a4372c;
+  font-size: 13px;
+  margin-top: 10px;
 }
 .catalog-matches {
   margin-top: 22px;
