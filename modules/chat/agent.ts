@@ -16,17 +16,31 @@ function buildResponse({
   content,
   products,
   productView,
-  toolNames = [],
   recommendedProductIds,
   cart,
-}: ChatSuccessResponse): ChatSuccessResponse {
-  return {
-    content,
-    ...(products === undefined ? {} : { products, productView }),
-    ...(recommendedProductIds === undefined ? {} : { recommendedProductIds }),
-    ...(cart === undefined ? {} : { cart }),
-    ...(toolNames.length > 0 ? { toolNames, toolName: toolNames[0] } : {}),
-  };
+  toolNames = [],
+}: Omit<ChatSuccessResponse, "toolName">): ChatSuccessResponse {
+  const response: ChatSuccessResponse = { content };
+
+  if (products !== undefined) {
+    response.products = products;
+    response.productView = productView;
+  }
+
+  if (recommendedProductIds !== undefined) {
+    response.recommendedProductIds = recommendedProductIds;
+  }
+
+  if (cart !== undefined) {
+    response.cart = cart;
+  }
+
+  if (toolNames.length > 0) {
+    response.toolNames = toolNames;
+    response.toolName = toolNames[0];
+  }
+
+  return response;
 }
 
 export async function runChat(
@@ -48,7 +62,6 @@ export async function runChat(
   let products: Product[] | undefined;
   let eligibleProducts: Product[] | undefined;
   let productView: ChatSuccessResponse["productView"];
-  
   while (true) {
     const response = await ollama.chat({
       model: CHAT_MODEL,
