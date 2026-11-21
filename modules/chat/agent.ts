@@ -48,7 +48,7 @@ export async function runChat(
   let products: Product[] | undefined;
   let eligibleProducts: Product[] | undefined;
   let productView: ChatSuccessResponse["productView"];
-
+  
   while (true) {
     const response = await ollama.chat({
       model: CHAT_MODEL,
